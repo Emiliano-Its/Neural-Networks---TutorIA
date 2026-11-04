@@ -26,18 +26,22 @@ pip install -r requirements.txt
 streamlit run app.py              # la app
 python -m scripts.calibrar        # revisa las metas de calibración
 python -m scripts.calibrar --guardar   # además regenera data/alumnos.csv y data/ocultas.csv
+python -m scripts.prueba_uci      # descarga UCI 697 y compara MLP vs. logística
 pytest                            # pruebas
 ```
 
 ## Estructura
 
 ```
-app.py, pages/          # app de Streamlit (Simulador, SOM, MLP)
+app.py, pages/          # app: Simulador, SOM, MLP, Datos reales, Encuesta
 tutoria/simulador.py    # simulador según la especificación
 tutoria/som.py          # SOM de Kohonen
 tutoria/mlp.py          # MLP: binaria, multiclase y regresión
 tutoria/experimento.py  # 28 entradas, división 70/15/15, entrenamiento y curva de horas
 scripts/calibrar.py     # metas de calibración
+scripts/prueba_uci.py   # prueba de realidad con el dataset UCI 697
+tutoria/datos_reales.py # validación del CSV de alumnos reales
+tutoria/encuesta.py     # las 13 preguntas de la encuesta
 data/                   # alumnos.csv (observables) y ocultas.csv (nunca entra a la red)
 docs/                   # especificación
 ```
