@@ -48,3 +48,30 @@ tutoria/panel.py        # lógica del panel individual
 data/                   # alumnos.csv (observables) y ocultas.csv (nunca entra a la red)
 docs/                   # especificación
 ```
+
+## Abrir la app desde otra computadora (SSH)
+
+La app corre en esta laptop (Debian). Para verla desde otra computadora sin
+exponer el puerto a la red, usa un túnel SSH:
+
+1. En la laptop, deja corriendo la app (escucha en el puerto 8501):
+
+   ```bash
+   cd ~/Projects/tutoria-uanl && source .venv/bin/activate
+   streamlit run app.py --server.headless true
+   ```
+
+2. En la otra computadora, abre el túnel (cambia `usuario` y `ip-de-la-laptop`;
+   la IP sale con `hostname -I` en la laptop):
+
+   ```bash
+   ssh -L 8501:localhost:8501 usuario@ip-de-la-laptop
+   ```
+
+   Deja esa terminal abierta mientras uses la app.
+
+3. En el navegador de la otra computadora entra a <http://localhost:8501>.
+
+Si el puerto 8501 ya está ocupado en la otra computadora, usa otro local, por
+ejemplo `ssh -L 8502:localhost:8501 ...` y abre <http://localhost:8502>.
+La laptop necesita el servidor SSH activo (`sudo apt install openssh-server`).

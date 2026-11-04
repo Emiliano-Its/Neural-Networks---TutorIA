@@ -174,3 +174,27 @@ def dividir(X, y, prueba: float = 0.2, semilla: int | None = 0):
     corte = int(len(X) * (1 - prueba))
     a, b = idx[:corte], idx[corte:]
     return X[a], X[b], y[a], y[b]
+
+
+class Ensamble:
+    """Promedio de varios MLP de la misma tarea (p. ej. entrenados con semillas distintas).
+
+    Tiene la misma interfaz de predicción que MLP: predecir_proba y predecir.
+    """
+
+    def __init__(self, modelos: list[MLP]):
+        if not modelos or len({m.tarea for m in modelos}) != 1:
+            raise ValueError("El ensamble necesita uno o más MLP de la misma tarea.")
+        self.modelos = modelos
+        self.tarea = modelos[0].tarea
+
+    def predecir_proba(self, X):
+        return np.mean([m.predecir_proba(X) for m in self.modelos], axis=0)
+
+    def predecir(self, X, umbral: float = 0.5):
+        if self.tarea == "regresion":
+            return np.mean([m.predecir(X) for m in self.modelos], axis=0)
+        S = self.predecir_proba(X)
+        if self.tarea == "multiclase":
+            return S.argmax(axis=1)
+        return (S >= umbral).astype(int)

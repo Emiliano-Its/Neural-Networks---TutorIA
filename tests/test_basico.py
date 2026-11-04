@@ -74,3 +74,16 @@ def test_mlp_binaria_sigue_funcionando():
     y = (X[:, 0] + X[:, 1] > 0).astype(int)
     red = MLP([2, 8, 1], tasa=0.1).entrenar(X, y, epocas=50)
     assert (red.predecir(X) == y).mean() > 0.9
+
+
+def test_ensamble_promedia(datos):
+    from tutoria.experimento import ensamble_nota, ensamble_riesgo
+    from tutoria.mlp import Ensamble
+    er = ensamble_riesgo(datos, semillas=(0, 1), epocas=20)
+    en = ensamble_nota(datos, semillas=(0, 1), epocas=20)
+    X = datos.X[:5]
+    assert np.allclose(er.predecir_proba(X), np.mean([m.predecir_proba(X) for m in er.modelos], 0))
+    assert np.allclose(er.predecir_proba(X).sum(1), 1)
+    assert np.allclose(en.predecir(X), np.mean([m.predecir(X) for m in en.modelos], 0))
+    with pytest.raises(ValueError):
+        Ensamble([er.modelos[0], en.modelos[0]])

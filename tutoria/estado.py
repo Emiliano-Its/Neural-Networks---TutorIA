@@ -15,15 +15,15 @@ def obtener_datos() -> Datos:
     return _datos(int(semilla))
 
 
-@st.cache_resource(show_spinner="Entrenando el MLP con los datos simulados...")
+@st.cache_resource(show_spinner="Entrenando 5 MLP (ensamble) con los datos simulados...")
 def _modelos(semilla: int):
-    from .experimento import entrenar_nota, entrenar_riesgo
+    from .experimento import ensamble_nota, ensamble_riesgo
     d = _datos(semilla)
-    return entrenar_riesgo(d), entrenar_nota(d)
+    return ensamble_riesgo(d), ensamble_nota(d)
 
 
 def modelos_simulados():
-    """MLP de riesgo y de nota entrenados con la configuración por defecto."""
+    """Ensambles de 5 MLP (semillas 0–4) para riesgo y nota, configuración por defecto."""
     return _modelos(int(st.session_state.get("semilla", 42)))
 
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .mlp import MLP, metricas_multiclase, metricas_regresion
+from .mlp import MLP, Ensamble, metricas_multiclase, metricas_regresion
 from .simulador import (ENTRADAS, Simulacion, curva_verdadera_horas,
                         dividir_estratificado, matriz_entradas, nivel_riesgo, simular)
 
@@ -45,6 +45,19 @@ def entrenar_nota(d: Datos, ocultas=(32, 16), activacion="relu", tasa=0.005,
     red = MLP([len(ENTRADAS), *ocultas, 1], activacion, tasa, "regresion", l2, semilla)
     return red.entrenar(d.X[d.ent], d.nota[d.ent], epocas, lote,
                         d.X[d.val], d.nota[d.val], semilla)
+
+
+SEMILLAS_ENSAMBLE = (0, 1, 2, 3, 4)
+
+
+def ensamble_riesgo(d: Datos, semillas=SEMILLAS_ENSAMBLE, **kw) -> Ensamble:
+    """Promedio de 5 MLP de riesgo entrenados con semillas distintas."""
+    return Ensamble([entrenar_riesgo(d, semilla=s, **kw) for s in semillas])
+
+
+def ensamble_nota(d: Datos, semillas=SEMILLAS_ENSAMBLE, **kw) -> Ensamble:
+    """Promedio de 5 MLP de nota entrenados con semillas distintas."""
+    return Ensamble([entrenar_nota(d, semilla=s, **kw) for s in semillas])
 
 
 def evaluar_riesgo(red: MLP, d: Datos, parte: str = "prueba") -> dict:
