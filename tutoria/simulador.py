@@ -13,6 +13,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .tri import PRIOR as _PRIOR
+from .tri import dominio_desde_theta, p_acierto
+from .tri import resumen as _resumen
+from .tri import verosimilitud as _verosimilitud
+
 SEMILLA = 42
 N_PRIMER_SEMESTRE = 3600
 
@@ -101,28 +106,6 @@ def _likert(rng, centro, ruido, n):
     return np.clip(np.rint(centro + ruido * rng.standard_normal(n)), 1, 5)
 
 
-def p_acierto(theta, b):
-    return 0.25 + 0.75 / (1 + np.exp(-1.7 * (theta - b)))
-
-
-# ---------------------------------------------------------------- test adaptativo
-_REJILLA = np.linspace(-4, 4, 161)
-_PRIOR = np.exp(-_REJILLA ** 2 / 2)
-
-
-def _verosimilitud(b, r):
-    """Verosimilitud sobre la rejilla para respuestas r (n,) a dificultad b (n,)."""
-    p = p_acierto(_REJILLA[None, :], b[:, None])
-    return np.where(r[:, None] == 1, p, 1 - p)
-
-
-def _resumen(post):
-    post = post / post.sum(axis=-1, keepdims=True)
-    media = post @ _REJILLA
-    var = post @ _REJILLA ** 2 - media ** 2
-    return media, np.sqrt(np.maximum(var, 0))
-
-
 def test_adaptativo(theta: np.ndarray, rng: np.random.Generator) -> dict[str, np.ndarray]:
     """Aplica el test de 15 preguntas. ``theta`` tiene forma (n, 7)."""
     n, H = theta.shape
@@ -148,7 +131,7 @@ def test_adaptativo(theta: np.ndarray, rng: np.random.Generator) -> dict[str, np
     habilidades.append(h15)
 
     theta_est, sd = _resumen(post)
-    dominio = 1 / (1 + np.exp(-1.7 * theta_est))
+    dominio = dominio_desde_theta(theta_est)
     # tiempo por pregunta: ~45 s, más lento con θ bajo
     hab = np.stack(habilidades, axis=1)                       # (n, 15)
     th_preg = np.take_along_axis(theta, hab, axis=1)

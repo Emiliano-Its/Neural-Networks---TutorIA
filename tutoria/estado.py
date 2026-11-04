@@ -25,3 +25,11 @@ def _modelos(semilla: int):
 def modelos_simulados():
     """MLP de riesgo y de nota entrenados con la configuración por defecto."""
     return _modelos(int(st.session_state.get("semilla", 42)))
+
+
+def enlace(pagina: str, texto: str, icono: str | None = None) -> None:
+    """st.page_link que no truena si la página aún no está registrada (p. ej. en pruebas)."""
+    try:
+        st.page_link(pagina, label=texto, icon=icono)
+    except Exception:  # noqa: BLE001
+        st.markdown(f"➡️ Ve a la página **{texto}** en el menú lateral.")
