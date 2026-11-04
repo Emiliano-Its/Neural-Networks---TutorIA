@@ -24,7 +24,7 @@ MATERIAS = [
     ("fisica1", "Física I", 0.65, 74, 12, (0.35, 0.45)),
     ("dibujo", "Dibujo para Ingeniería", 0.30, 80, 9, (0.10, 0.20)),
     ("ti", "Aplicación de las TI", 0.20, 84, 9, (0.05, 0.15)),
-    ("comunicativa", "Competencia comunicativa", 0.10, 85, 9, (0.05, 0.15)),
+    ("comunicativa", "Competencia comunicativa", 0.10, 84, 9, (0.05, 0.15)),
 ]
 CLAVES_MATERIAS = [m[0] for m in MATERIAS]
 
@@ -45,6 +45,7 @@ HABILIDADES = [
 CLAVES_HABILIDADES = [h[0] for h in HABILIDADES]
 
 CORTE_ALTO, CORTE_BAJO = 70.0, 80.0
+BASE_NOTA = 74.5  # base de la nota de Mate II (la especificación original decía 72.5)
 NIVELES_RIESGO = ["bajo", "medio", "alto"]  # códigos 0, 1, 2
 
 # Parámetros de la encuesta (puntos de partida de la especificación; se
@@ -238,8 +239,8 @@ def simular(semilla: int = SEMILLA, n: int = N_PRIMER_SEMESTRE,
     E_bruto = efecto_habitos(B1[idx], B2[idx], B3[idx], B4[idx], B5[idx], B6[idx], B7[idx])
     centro = float(E_bruto.mean())
     E = E_bruto - centro
-    nota_sin_ruido = np.clip(72.5 + 6.5 * z + E, 0, 100)
-    nota = np.clip(72.5 + 6.5 * z + E + 5 * rng.standard_normal(len(idx)), 0, 100)
+    nota_sin_ruido = np.clip(BASE_NOTA + 6.5 * z + E, 0, 100)
+    nota = np.clip(BASE_NOTA + 6.5 * z + E + 5 * rng.standard_normal(len(idx)), 0, 100)
 
     alumnos = pd.DataFrame({"id": idx + 1})
     for j, m in enumerate(CLAVES_MATERIAS):
@@ -320,7 +321,7 @@ def dividir_estratificado(y: np.ndarray, fracciones=(0.70, 0.15, 0.15),
 def curva_verdadera_horas(sim: Simulacion, horas: np.ndarray) -> np.ndarray:
     """Nota media sin ruido si todos estudiaran ``h`` horas (resto igual)."""
     a, o = sim.alumnos, sim.ocultas
-    base = 72.5 + 6.5 * o["z"].to_numpy()
+    base = BASE_NOTA + 6.5 * o["z"].to_numpy()
     out = []
     for h in horas:
         E = efecto_habitos(np.full(len(a), h), a["B2"], a["B3"], a["B4"], a["B5"],

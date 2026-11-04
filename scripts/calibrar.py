@@ -49,7 +49,8 @@ def evaluar(sim: Simulacion) -> list[tuple[str, str, bool]]:
     orden = sorted(corrs, key=corrs.get, reverse=True)
     texto = ", ".join(f"{m} {corrs[m]:.3f}" for m in orden)
     meta("Mate I es la previa con mayor correlación", texto, orden[0] == "mate1")
-    meta("Competencia comunicativa es la de menor correlación", texto, orden[-1] == "comunicativa")
+    meta("Las dos previas con menor correlación son TI y Competencia comunicativa", texto,
+         set(orden[-2:]) == {"ti", "comunicativa"})
 
     techo = (nivel_riesgo(o["nota_sin_ruido"]) == a["riesgo"]).mean()
     meta("Techo de exactitud con la nota sin ruido en 70–75%", f"{techo:.1%}",

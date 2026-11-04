@@ -14,7 +14,7 @@ Cada materia: ρ, μ, σ y meta de reprobación (<70):
 - Física I: 0.65, 74, 12, meta 35–45%
 - Dibujo para Ingeniería: 0.30, 80, 9, meta 10–20%
 - Aplicación de las TI: 0.20, 84, 9, meta 5–15%
-- Competencia comunicativa: 0.10, 85, 9, meta 5–15%
+- Competencia comunicativa: 0.10, 84, 9, meta 5–15%
 A2 = número de materias abajo de 70.
 
 ## Encuesta (puntos de partida; se ajustan al calibrar)
@@ -37,7 +37,7 @@ P(acierto) = 0.25 + 0.75/(1+exp(-1.7(θ_h - b))), con b en {-1,0,+1}. Cada habil
 D = Σ w_h θ_h, con w: derivadas 5/17, álgebra básica 4/17, cadena 2/17, límites 2/17, trigonométricas 2/17, polinomios 1/17, parciales 1/17.
 G = Σ r_s k_s, con r: Mate I 0.762, Álgebra 0.095, Dibujo 0.095, Física I 0.048 y las demás 0.
 z = reescalar(0.40D + 0.20G + 0.20c + 0.10A)
-nota = 72.5 + 6.5z + E_hábitos + ε, con ε ~ N(0,5) y recortada a [0,100].
+nota = 74.5 + 6.5z + E_hábitos + ε, con ε ~ N(0,5) y recortada a [0,100].
 E_hábitos va centrado para que el alumno promedio quede en 0:
 - estudio: 3·ln(1+horas/4)
 - asistencia: 10·(asis−0.85)
@@ -53,7 +53,7 @@ Riesgo con cortes 80/70: bajo ≥80, medio de 70 a 79.9, alto <70.
 - corr(asistencia, nota): 0.35–0.45.
 - corr(C1, nota): 0.28–0.38.
 - R² de la nota con solo B3 y B4: ≤25%.
-- Mate I es la previa con mayor correlación con la nota y Competencia comunicativa la menor.
+- Mate I es la previa con mayor correlación con la nota, y las dos previas con menor correlación son TI y Competencia comunicativa.
 - Techo de exactitud del riesgo usando la nota sin ruido: 70–75%.
 
 ## 28 entradas (estandarizadas)
@@ -61,3 +61,9 @@ Las 7 calificaciones de A1 (posición frente al promedio de cada materia), A2, B
 
 ## Archivos
 data/alumnos.csv guarda solo observables, la nota y el riesgo. data/ocultas.csv guarda q, c, θ, k, A y la nota sin ruido, y nunca entra a la red. División 70/15/15 estratificada por riesgo. La curva de horas recomendadas varía B1 de 0 a 20 en el modelo y se compara con la curva verdadera.
+
+## Cambios respecto a la versión acordada (2026-11-04)
+Aplicados en un commit aparte para poder revertirlos.
+1. Base de la nota: 72.5 → 74.5. Con 72.5 y E_hábitos centrado, el riesgo alto salía en 39%. Con 74.5 queda en el rango de 30–35%.
+2. μ de Competencia comunicativa: 85 → 84. Con 85 la reprobación esperada era 4.8%, abajo de la meta de 5–15%.
+3. Meta de orden: antes pedía que Competencia comunicativa fuera la de menor correlación. Ahora pide que TI y Competencia comunicativa sean las dos de menor correlación, en cualquier orden, porque ambas tienen peso 0 en G y su orden depende del ruido.
