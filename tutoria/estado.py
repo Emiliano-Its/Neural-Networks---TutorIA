@@ -33,3 +33,32 @@ def enlace(pagina: str, texto: str, icono: str | None = None) -> None:
         st.page_link(pagina, label=texto, icon=icono)
     except Exception:  # noqa: BLE001
         st.markdown(f"➡️ Ve a la página **{texto}** en el menú lateral.")
+
+
+@st.cache_resource(show_spinner="Entrenando el SOM con los datos simulados...")
+def _som(semilla: int):
+    import numpy as np
+
+    from .panel import entradas_som
+    from .som import SOM
+    d = _datos(semilla)
+    X = entradas_som(d.X)
+    media, desv = X.mean(0), X.std(0) + 1e-8
+    Xn = (X - media) / desv
+    som = SOM(10, 10, Xn.shape[1], tasa=0.5).entrenar(Xn, 20)
+    pos = som.mapear(Xn)
+    conteo = np.zeros((10, 10))
+    suma = np.zeros((10, 10))
+    alto = np.zeros((10, 10))
+    for (i, j), n, r in zip(pos, d.nota, d.riesgo):
+        conteo[i, j] += 1
+        suma[i, j] += n
+        alto[i, j] += r == 2
+    con = np.where(conteo == 0, np.nan, conteo)
+    stats = {"conteo": conteo, "nota_media": suma / con, "pct_alto": alto / con}
+    return som, media, desv, stats
+
+
+def som_simulado():
+    """SOM 10×10 entrenado con los simulados (26 entradas, sin D1)."""
+    return _som(int(st.session_state.get("semilla", 42)))

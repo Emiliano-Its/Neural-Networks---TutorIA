@@ -33,7 +33,7 @@ pytest                            # pruebas
 ## Estructura
 
 ```
-app.py, pages/          # app: Simulador, SOM, MLP, Datos reales, Encuesta
+app.py, pages/          # app: Simulador, SOM, MLP, Datos reales, Encuesta, Test, Mi resultado
 tutoria/simulador.py    # simulador según la especificación
 tutoria/som.py          # SOM de Kohonen
 tutoria/mlp.py          # MLP: binaria, multiclase y regresión
@@ -42,6 +42,9 @@ scripts/calibrar.py     # metas de calibración
 scripts/prueba_uci.py   # prueba de realidad con el dataset UCI 697
 tutoria/datos_reales.py # validación del CSV de alumnos reales
 tutoria/encuesta.py     # las 13 preguntas de la encuesta
+tutoria/tri.py          # TRI 3PL compartida (simulador y página del test)
+tutoria/banco.py        # carga data/banco_preguntas.json
+tutoria/panel.py        # lógica del panel individual
 data/                   # alumnos.csv (observables) y ocultas.csv (nunca entra a la red)
 docs/                   # especificación
 ```
