@@ -3,75 +3,120 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from tutoria.mlp import MLP, dividir, metricas
-from tutoria.simulador import LIMITES, RASGOS
+from tutoria.estado import obtener_datos
+from tutoria.experimento import (curva_horas, entrenar_nota, entrenar_riesgo, evaluar_nota,
+                                 evaluar_riesgo)
+from tutoria.simulador import ENTRADAS, NIVELES_RIESGO, nivel_riesgo
 
 st.set_page_config(page_title="MLP · TutorIA", layout="wide")
-st.title("Perceptrón multicapa (MLP): riesgo de reprobar")
+st.title("Perceptrón multicapa (MLP)")
 
-if "datos" not in st.session_state:
-    st.warning("Primero genera alumnos en la página **Simulador**.")
-    st.stop()
+d = obtener_datos()
+st.caption(f"28 entradas · división estratificada 70/15/15: "
+           f"{len(d.ent)} entrenamiento, {len(d.val)} validación, {len(d.prueba)} prueba.")
 
-df = st.session_state["datos"]
+
+def capas(texto):
+    return tuple(int(c) for c in texto.split(",") if c.strip())
+
+
 with st.sidebar:
-    ocultas = st.text_input("Neuronas en capas ocultas (separadas por coma)", "16,8")
+    st.header("Riesgo (3 clases)")
+    oc_r = st.text_input("Capas ocultas", "32,16", key="oc_r")
+    tasa_r = st.select_slider("Tasa", [0.001, 0.003, 0.01, 0.03, 0.1], 0.01, key="t_r")
+    ep_r = st.slider("Épocas", 10, 500, 100, 10, key="e_r")
+    l2_r = st.select_slider("L2", [0.0, 1e-4, 1e-3, 1e-2, 1e-1], 1e-3, key="l_r")
+    st.header("Nota (regresión)")
+    oc_n = st.text_input("Capas ocultas", "16", key="oc_n")
+    tasa_n = st.select_slider("Tasa", [0.001, 0.003, 0.005, 0.01, 0.03], 0.005, key="t_n")
+    ep_n = st.slider("Épocas", 10, 500, 100, 10, key="e_n")
+    l2_n = st.select_slider("L2", [0.0, 1e-4, 1e-3, 1e-2, 1e-1], 1e-2, key="l_n")
     activacion = st.selectbox("Activación", ["relu", "tanh", "sigmoide"])
-    tasa = st.select_slider("Tasa de aprendizaje", [0.001, 0.003, 0.01, 0.03, 0.1, 0.3], 0.03)
-    epocas = st.slider("Épocas", 10, 1000, 200, 10)
-    lote = st.select_slider("Tamaño de lote", [8, 16, 32, 64, 128], 32)
-    prueba = st.slider("Proporción de prueba", 0.1, 0.5, 0.2, 0.05)
-    umbral = st.slider("Umbral de decisión", 0.05, 0.95, 0.5, 0.05)
 
 try:
-    capas_ocultas = [int(c) for c in ocultas.split(",") if c.strip()]
+    cfg_r = dict(ocultas=capas(oc_r), activacion=activacion, tasa=tasa_r, epocas=ep_r, l2=l2_r)
+    cfg_n = dict(ocultas=capas(oc_n), activacion=activacion, tasa=tasa_n, epocas=ep_n, l2=l2_n)
 except ValueError:
-    st.error("Escribe números enteros separados por coma, p. ej. 16,8")
+    st.error("Las capas ocultas deben ser enteros separados por coma, p. ej. 32,16")
     st.stop()
 
-X = df[RASGOS].to_numpy(float)
-y = df["riesgo"].to_numpy()
-X_tr, X_te, y_tr, y_te = dividir(X, y, prueba)
-
-if st.button("Entrenar MLP", type="primary"):
+clave = (repr(cfg_r), repr(cfg_n), st.session_state.get("semilla", 42))
+if st.button("Entrenar ambos modelos", type="primary"):
     with st.spinner("Entrenando..."):
-        red = MLP([len(RASGOS), *capas_ocultas, 1], activacion, tasa)
-        red.entrenar(X_tr, y_tr, epocas, lote, X_te, y_te)
-    st.session_state["mlp"] = red
+        st.session_state["mlp"] = (entrenar_riesgo(d, **cfg_r), entrenar_nota(d, **cfg_n), clave)
 
-if "mlp" not in st.session_state:
-    st.info("Ajusta los parámetros y pulsa **Entrenar MLP**.")
+if "mlp" not in st.session_state or st.session_state["mlp"][2] != clave:
+    st.info("Ajusta los parámetros y pulsa **Entrenar ambos modelos**.")
     st.stop()
 
-red = st.session_state["mlp"]
-m = metricas(y_te, red.predecir(X_te, umbral))
-c = st.columns(4)
-for col, k in zip(c, ["exactitud", "precision", "recall", "f1"]):
-    col.metric(k.capitalize(), f"{m[k]:.2%}")
+red_r, red_n, _ = st.session_state["mlp"]
+techo = (nivel_riesgo(d.sim.ocultas["nota_sin_ruido"].to_numpy()[d.prueba])
+         == d.riesgo[d.prueba]).mean()
 
-c1, c2 = st.columns(2)
-with c1:
-    st.subheader("Curva de pérdida")
-    fig, ax = plt.subplots()
-    ax.plot(red.historial["perdida"], label="entrenamiento")
-    ax.plot(red.historial["perdida_val"], label="prueba")
-    ax.set_xlabel("época"); ax.set_ylabel("entropía cruzada"); ax.legend()
+t1, t2, t3, t4 = st.tabs(["Riesgo", "Nota", "Curva de horas", "Alumno"])
+
+with t1:
+    m, mv = evaluar_riesgo(red_r, d), evaluar_riesgo(red_r, d, "val")
+    c = st.columns(4)
+    c[0].metric("Exactitud (prueba)", f"{m['exactitud']:.1%}")
+    c[1].metric("Exactitud (validación)", f"{mv['exactitud']:.1%}")
+    c[2].metric("F1 macro (prueba)", f"{m['f1_macro']:.3f}")
+    c[3].metric("Techo (nota sin ruido)", f"{techo:.1%}")
+    c1, c2 = st.columns(2)
+    with c1:
+        fig, ax = plt.subplots()
+        ax.plot(red_r.historial["perdida"], label="entrenamiento")
+        ax.plot(red_r.historial["perdida_val"], label="validación")
+        ax.set_xlabel("época"); ax.set_ylabel("entropía cruzada"); ax.legend()
+        st.pyplot(fig)
+    with c2:
+        st.markdown("**Matriz de confusión (prueba)**")
+        st.table(pd.DataFrame(m["confusion"], index=[f"real: {n}" for n in NIVELES_RIESGO],
+                              columns=[f"pred: {n}" for n in NIVELES_RIESGO]))
+        st.table(pd.DataFrame({"precisión": m["precision"], "recall": m["recall"]},
+                              index=NIVELES_RIESGO).round(3))
+
+with t2:
+    m = evaluar_nota(red_n, d)
+    c = st.columns(4)
+    c[0].metric("MAE (prueba)", f"{m['mae']:.2f}")
+    c[1].metric("RMSE (prueba)", f"{m['rmse']:.2f}")
+    c[2].metric("R² (prueba)", f"{m['r2']:.3f}")
+    c[3].metric("Riesgo por cortes 80/70", f"{m['exactitud_riesgo_por_cortes']:.1%}")
+    c1, c2 = st.columns(2)
+    with c1:
+        fig, ax = plt.subplots()
+        ax.plot(red_n.historial["perdida"], label="entrenamiento")
+        ax.plot(red_n.historial["perdida_val"], label="validación")
+        ax.set_xlabel("época"); ax.set_ylabel("ECM (estandarizado)"); ax.legend()
+        st.pyplot(fig)
+    with c2:
+        pred = red_n.predecir(d.X[d.prueba])
+        fig, ax = plt.subplots()
+        ax.scatter(d.nota[d.prueba], pred, s=8, alpha=0.6)
+        ax.plot([40, 100], [40, 100], "k--", lw=1)
+        ax.set_xlabel("nota real"); ax.set_ylabel("nota predicha")
+        st.pyplot(fig)
+
+with t3:
+    st.markdown("Se fija B1 (horas de estudio) en cada valor de 0 a 20 para todos los alumnos "
+                "y se promedia la nota predicha; la curva verdadera usa la fórmula oculta.")
+    h, mod, ver = curva_horas(red_n, d)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(h, ver, "k-", label="verdadera")
+    ax.plot(h, mod, "o-", label="modelo")
+    ax.set_xlabel("horas de estudio por semana"); ax.set_ylabel("nota media"); ax.legend()
     st.pyplot(fig)
-with c2:
-    st.subheader("Matriz de confusión (prueba)")
-    st.table(pd.DataFrame([[m["vn"], m["fp"]], [m["fn"], m["vp"]]],
-                          index=["real: aprueba", "real: reprueba"],
-                          columns=["pred: aprueba", "pred: reprueba"]))
+    st.metric("Diferencia máxima", f"{np.abs(mod - ver).max():.2f} puntos")
 
-st.subheader("Evaluar a un alumno")
-cols = st.columns(3)
-valores = []
-for k, rasgo in enumerate(RASGOS):
-    lo, hi = LIMITES[rasgo]
-    valores.append(cols[k % 3].slider(rasgo, float(lo), float(hi), float((lo + hi) / 2)))
-p = float(red.predecir_proba(np.array([valores]))[0])
-st.metric("Probabilidad estimada de reprobar", f"{p:.1%}")
-if p >= umbral:
-    st.error("Recomendación: canalizar a tutoría.")
-else:
-    st.success("Sin riesgo alto según el modelo.")
+with t4:
+    pos = st.number_input("Alumno del conjunto de prueba (posición)", 0, len(d.prueba) - 1, 0)
+    i = d.prueba[pos]
+    fila = d.sim.alumnos.iloc[i]
+    proba = red_r.predecir_proba(d.X[[i]])[0]
+    c = st.columns(3)
+    c[0].metric("Nota real", f"{fila['nota']:.1f}", NIVELES_RIESGO[int(fila['riesgo'])])
+    c[1].metric("Nota predicha", f"{red_n.predecir(d.X[[i]])[0]:.1f}")
+    c[2].metric("Riesgo predicho", NIVELES_RIESGO[int(proba.argmax())], f"{proba.max():.0%}")
+    st.bar_chart(pd.Series(proba, index=NIVELES_RIESGO, name="probabilidad"))
+    st.dataframe(pd.DataFrame({"entrada": ENTRADAS, "valor": d.X[i]}), hide_index=True)

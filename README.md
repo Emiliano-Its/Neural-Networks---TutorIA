@@ -1,11 +1,16 @@
 # TutorIA UANL
 
-App en Python con Streamlit para explorar el desempeño de alumnos con redes
-neuronales implementadas desde cero con NumPy:
+App en Python con Streamlit que predice el desempeño en **Matemáticas II** con
+redes neuronales implementadas desde cero con NumPy (SOM y MLP), a partir de un
+simulador de alumnos que sigue [`docs/especificacion-simulador.md`](docs/especificacion-simulador.md).
 
-- **Simulador** de alumnos sintéticos (asistencia, horas de estudio, parciales, tareas, participación, tutorías).
-- **SOM** (mapa de Kohonen) para agrupar alumnos sin supervisión.
-- **MLP** con retropropagación para predecir el riesgo de reprobar.
+- **Simulador**: 3,600 alumnos de 1er semestre (semilla 42); los que aprueban
+  Matemáticas I (~2,000) forman el dataset de Mate II. Variables ocultas
+  (q, c, θ, k, A) separadas de los observables.
+- **28 entradas**: 7 calificaciones de 1er semestre, A2, encuesta B1–B7, C1–C3,
+  D1 + indicador de "no respondió", 7 dominios del test adaptativo y tiempo promedio.
+- **SOM** (26 entradas, sin D1) para agrupar alumnos.
+- **MLP** para el nivel de riesgo (bajo ≥80 / medio 70–79.9 / alto <70) y para la nota (regresión).
 
 ## Instalación
 
@@ -18,20 +23,21 @@ pip install -r requirements.txt
 ## Uso
 
 ```bash
-streamlit run app.py
-```
-
-## Pruebas
-
-```bash
-pytest
+streamlit run app.py              # la app
+python -m scripts.calibrar        # revisa las metas de calibración
+python -m scripts.calibrar --guardar   # además regenera data/alumnos.csv y data/ocultas.csv
+pytest                            # pruebas
 ```
 
 ## Estructura
 
 ```
-app.py              # página de inicio
-pages/              # Simulador, SOM, MLP
-tutoria/            # lógica: simulador.py, som.py, mlp.py
-tests/              # pruebas con pytest
+app.py, pages/          # app de Streamlit (Simulador, SOM, MLP)
+tutoria/simulador.py    # simulador según la especificación
+tutoria/som.py          # SOM de Kohonen
+tutoria/mlp.py          # MLP: binaria, multiclase y regresión
+tutoria/experimento.py  # 28 entradas, división 70/15/15, entrenamiento y curva de horas
+scripts/calibrar.py     # metas de calibración
+data/                   # alumnos.csv (observables) y ocultas.csv (nunca entra a la red)
+docs/                   # especificación
 ```
