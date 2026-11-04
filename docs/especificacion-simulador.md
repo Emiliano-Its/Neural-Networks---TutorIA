@@ -37,7 +37,7 @@ P(acierto) = 0.25 + 0.75/(1+exp(-1.7(θ_h - b))), con b en {-1,0,+1}. Cada habil
 D = Σ w_h θ_h, con w: derivadas 5/17, álgebra básica 4/17, cadena 2/17, límites 2/17, trigonométricas 2/17, polinomios 1/17, parciales 1/17.
 G = Σ r_s k_s, con r: Mate I 0.762, Álgebra 0.095, Dibujo 0.095, Física I 0.048 y las demás 0.
 z = reescalar(0.40D + 0.20G + 0.20c + 0.10A)
-nota = 74.5 + 6.5z + E_hábitos + ε, con ε ~ N(0,5) y recortada a [0,100].
+nota = 75.5 + 9.0z + E_hábitos + ε, con ε ~ N(0,5) y recortada a [0,100].
 E_hábitos va centrado para que el alumno promedio quede en 0:
 - estudio: 3·ln(1+horas/4)
 - asistencia: 10·(asis−0.85)
@@ -67,3 +67,4 @@ Aplicados en un commit aparte para poder revertirlos.
 1. Base de la nota: 72.5 → 74.5. Con 72.5 y E_hábitos centrado, el riesgo alto salía en 39%. Con 74.5 queda en el rango de 30–35%.
 2. μ de Competencia comunicativa: 85 → 84. Con 85 la reprobación esperada era 4.8%, abajo de la meta de 5–15%.
 3. Meta de orden: antes pedía que Competencia comunicativa fuera la de menor correlación. Ahora pide que TI y Competencia comunicativa sean las dos de menor correlación, en cualquier orden, porque ambas tienen peso 0 en G y su orden depende del ruido.
+4. Dispersión de la nota (segundo ajuste): el coeficiente de z sube de 6.5 a 9.0 y la base de 74.5 a 75.5. Con 6.5 la desviación de la nota era ~8.9, así que la franja de 70 a 80 siempre juntaba ~43% y bajo y medio no podían quedar parecidos con el alto en 30–35%. La idea era llevar la desviación a ~12, igual que la dispersión de Matemáticas I y Álgebra de 1er semestre (σ de 12 a 13). Pero con un coeficiente de 10.5 (desviación ~12.1) el techo de exactitud con la nota sin ruido llegaba a ~77%, arriba de la meta de 70–75%. Por eso el coeficiente se bajó a 9.0 (desviación ~10.9), el valor más alto con el que el techo queda en rango (74.1%). Luego se reajustó la base a 75.5 para que el riesgo alto quede en 30–35% y bajo y medio parecidos. Ninguna meta se aflojó.
