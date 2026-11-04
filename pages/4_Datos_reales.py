@@ -1,4 +1,6 @@
 import io
+import json
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +21,47 @@ def tabla_confusion(M):
                         columns=[f"pred: {n}" for n in NIVELES_RIESGO])
 
 
-tab_csv, = st.tabs(["Subir CSV"])
+tab_csv, tab_uci = st.tabs(["Subir CSV", "Prueba de realidad (UCI 697)"])
+
+# La pestaña UCI se dibuja primero porque la de CSV usa st.stop().
+with tab_uci:
+    ruta = Path("data/uci697_resultados.json")
+    if not ruta.exists():
+        st.info("Todavía no hay resultados. Corre `python -m scripts.prueba_uci`.")
+    else:
+        r = json.loads(ruta.read_text())
+        st.markdown(
+            f"**{r['dataset']}** (Realinho et al., 2021, CC BY 4.0): {r['n']:,} alumnos "
+            "universitarios de Portugal con 3 clases. Se entrena el **mismo MLP** desde cero "
+            f"con división 70/15/15 estratificada ({' / '.join(map(str, r['division']))}). "
+            "Se compara con la clase mayoritaria y con una regresión logística (el mismo "
+            "MLP sin capas ocultas). Los hiperparámetros se eligen con validación y la "
+            f"exactitud de prueba es el promedio de {len(r['semillas'])} semillas.")
+        st.caption("Distribución: " + ", ".join(
+            f"{c} {v:.1%}" for c, v in zip(r["clases"], r["distribucion"])))
+        for v in r["variantes"]:
+            st.subheader(f"Variante: {v['variante']} ({v['n_entradas']} entradas)")
+            filas = [{"modelo": "Clase mayoritaria",
+                      "exactitud": f"{v['mayoritaria']['exactitud']:.1%}",
+                      "F1 macro": f"{v['mayoritaria']['f1_macro']:.3f}", "configuración": "—"}]
+            for k, nombre in [("logistica", "Regresión logística"), ("mlp", "MLP 32-16")]:
+                m = v[k]
+                filas.append({"modelo": nombre,
+                              "exactitud": f"{m['exactitud']:.1%} ± {m['exactitud_sd']:.1%}",
+                              "F1 macro": f"{m['f1_macro']:.3f}",
+                              "configuración": f"L2 {m['l2']}, {m['epocas']} épocas",
+                              **{f"recall {c}": f"{x:.2f}"
+                                 for c, x in zip(r["clases"], m["recall_por_clase"])}})
+            st.dataframe(pd.DataFrame(filas), hide_index=True, width="stretch")
+            with st.expander("Matriz de confusión del MLP (semilla 0)"):
+                st.table(pd.DataFrame(v["mlp"]["confusion_semilla0"],
+                                      index=[f"real: {c}" for c in r["clases"]],
+                                      columns=[f"pred: {c}" for c in r["clases"]]))
+        st.markdown(
+            "**Lectura:** con datos reales el MLP queda muy por encima de la clase mayoritaria, "
+            "pero empata con la regresión logística. Le cuesta la clase *Enrolled* (recall "
+            "bajo), igual que en la literatura sobre este dataset. Que el MLP no supere a un "
+            "modelo lineal también pasa en nuestro simulador, donde la nota es casi lineal.")
 
 with tab_csv:
     st.markdown(
