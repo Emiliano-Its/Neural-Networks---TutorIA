@@ -1,6 +1,7 @@
 import { BookOpenText, Brain, CircleAlert, CircleCheck, Cpu, Database, Gauge, KeyRound, LogOut, Map as MapaIcono, RefreshCw, RotateCcw, Save, SlidersHorizontal, Target, Workflow } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api, esperarApi } from '../api.js'
 import CampoConfig from '../components/CampoConfig.jsx'
 import FlujoSistema from '../components/FlujoSistema.jsx'
@@ -72,7 +73,7 @@ export default function Admin() {
           {tab === 'variables' && <Variables pw={pw} avisar={avisar} onReentrenado={(i) => { setInfo(i); setError('') }} />}
         </motion.div>
       </AnimatePresence>
-      <AnimatePresence>
+      {createPortal(<AnimatePresence>
         {toast && (
           <motion.div key={toast.id} className={`toast ${toast.tipo === 'error' ? 'error' : ''}`} role="status"
             initial={{ opacity: 0, y: 20, x: '-50%' }} animate={{ opacity: 1, y: 0, x: '-50%' }} exit={{ opacity: 0, y: 12, x: '-50%', transition: { duration: 0.2 } }}
@@ -80,7 +81,7 @@ export default function Admin() {
             {toast.tipo === 'error' ? <CircleAlert size={20} aria-hidden /> : <CircleCheck size={20} aria-hidden />} {toast.texto}
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>, document.body)}
     </div>
   )
 }

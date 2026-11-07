@@ -140,8 +140,8 @@ function Medidor({ nota, rango, color }) {
       <svg viewBox="0 0 220 220">
         <defs>
           <linearGradient id="g-medidor" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#7C3AED" />
-            <stop offset="1" stopColor="#22D3EE" />
+            <stop offset="0" stopColor="#7e3a3c" />
+            <stop offset="1" stopColor="#d2b273" />
           </linearGradient>
         </defs>
         <circle className="pista" cx="110" cy="110" r={R} fill="none" strokeWidth="14" />
@@ -171,8 +171,8 @@ function CurvaHoras({ h, u }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="grafica" role="img" aria-label="Nota esperada contra horas de estudio">
       <defs>
-        <linearGradient id="g-curva" x1="0" x2="1"><stop offset="0" stopColor="#A78BFA" /><stop offset="1" stopColor="#22D3EE" /></linearGradient>
-        <linearGradient id="g-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7C3AED" stopOpacity=".28" /><stop offset="1" stopColor="#7C3AED" stopOpacity="0" /></linearGradient>
+        <linearGradient id="g-curva" x1="0" x2="1"><stop offset="0" stopColor="#8e95a5" /><stop offset="1" stopColor="#d2b273" /></linearGradient>
+        <linearGradient id="g-area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#d2b273" stopOpacity=".16" /><stop offset="1" stopColor="#d2b273" stopOpacity="0" /></linearGradient>
       </defs>
       {[u.alto, u.bajo].map((v) => (
         <g key={v}>
@@ -217,7 +217,9 @@ function MapaSom({ mapa, neurona }) {
   const color = (v) => {
     if (v == null) return 'var(--surface-2)'
     const t = Math.max(0, Math.min(1, (v - 60) / 30))
-    return `hsl(${265 - t * 80}, ${55 + t * 25}%, ${30 + t * 26}%)` // violeta (bajo) → cian (alto)
+    // grafito (nota baja) → oro viejo (nota alta), la misma escala que la landing
+    const mezcla = (a, b) => Math.round(a + (b - a) * t)
+    return `rgb(${mezcla(34, 210)}, ${mezcla(36, 178)}, ${mezcla(44, 115)})`
   }
   return (
     <div className="som-caja">
@@ -232,7 +234,7 @@ function MapaSom({ mapa, neurona }) {
           )
         }))}
       </div>
-      <p className="tenue peq">Cada celda es una neurona del mapa. Más claro = nota media más alta. Tu celda tiene el borde dorado.</p>
+      <p className="tenue peq">Cada celda es una neurona del mapa. Más dorada = nota media más alta. Tu celda tiene el borde claro.</p>
     </div>
   )
 }

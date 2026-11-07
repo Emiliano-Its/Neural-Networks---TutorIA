@@ -29,7 +29,7 @@ export default function FlujoSistema({ nModelos, som, datos }) {
     <svg className="flujo-svg" viewBox={`0 0 ${W} ${H}`} role="img"
       aria-label="Flujo: encuesta y test forman 28 entradas, que van al ensamble de MLP y al SOM; ambos producen el resultado">
       <defs>
-        <radialGradient id="g-pulso-f"><stop offset="0" stopColor="#22D3EE" /><stop offset="1" stopColor="#22D3EE" stopOpacity="0" /></radialGradient>
+        <radialGradient id="g-pulso-f"><stop offset="0" stopColor="#d2b273" /><stop offset="1" stopColor="#d2b273" stopOpacity="0" /></radialGradient>
       </defs>
       {lineas.map((l) => (
         <motion.path key={l.k} id={`ln${l.k}`} className="linea" d={l.d}

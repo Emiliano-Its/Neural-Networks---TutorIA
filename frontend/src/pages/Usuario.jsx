@@ -1,15 +1,17 @@
-import { CircleAlert, Clock, Lock, Network, Check, ArrowLeft, ArrowRight, SkipForward, Sparkles, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CircleAlert, RotateCcw, SkipForward, TriangleAlert } from 'lucide-react'
 import { AnimatePresence, motion, useSpring } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api, esperarApi } from '../api.js'
 import Chat from '../components/Chat.jsx'
 import RedNeuronal from '../components/RedNeuronal.jsx'
 import Resultado from '../components/Resultado.jsx'
 import { cascada, EASE, hijo, presion } from '../movimiento.js'
 
-// Flujo: inicio → encuesta (13 pasos) → test adaptativo (15 preguntas) → resultado
+// Flujo (la portada es la landing en /): encuesta (13 pasos) → test adaptativo (15 preguntas) → resultado
 export default function Usuario() {
-  const [fase, setFase] = useState('inicio')
+  const navigate = useNavigate()
+  const [fase, setFase] = useState('cargando')
   const [preguntas, setPreguntas] = useState(null)
   const [error, setError] = useState('')
   const [encuesta, setEncuesta] = useState({})
@@ -29,13 +31,14 @@ export default function Usuario() {
       setAviso('')
       setPreguntas(p)
       setEncuesta(valoresIniciales(p.encuesta))
-    }).catch((e) => setError(e.message))
+      setFase('encuesta')
+    }).catch((e) => { setError(e.message); setFase('error') })
   }, [])
 
   const nEnc = preguntas?.encuesta.length ?? 13
   const nTest = preguntas?.test.n_preguntas ?? 15
   const total = nEnc + nTest
-  const hechos = fase === 'encuesta' ? paso : fase === 'test' ? nEnc + respuestas.length : fase === 'inicio' ? 0 : total
+  const hechos = fase === 'encuesta' ? paso : fase === 'test' ? nEnc + respuestas.length : fase === 'cargando' ? 0 : total
 
   function empezar() {
     setPaso(0); setDir(1); setRespuestas([]); setResultado(null); setError('')
@@ -80,10 +83,14 @@ export default function Usuario() {
   return (
     <>
       <AnimatePresence mode="wait">
-        {fase === 'inicio' && (
-          <motion.div key="inicio" exit={{ opacity: 0, y: -8, transition: { duration: 0.22 } }}>
-            <Inicio listo={!!preguntas} aviso={aviso} error={error} onEmpezar={empezar} />
-          </motion.div>
+        {fase === 'cargando' && (
+          <motion.section key="cargando" className="tarjeta paso marco-paso" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} aria-busy="true">
+            <div className="esqueleto" style={{ height: 14, width: '30%', marginBottom: 18 }} />
+            <div className="esqueleto" style={{ height: 30, width: '70%', marginBottom: 24 }} />
+            <div className="esqueleto" style={{ height: 52, marginBottom: 10 }} />
+            <div className="esqueleto" style={{ height: 52 }} />
+            <p className="estado-api" aria-live="polite"><span className="punto-vivo" aria-hidden /> {aviso || 'Cargando preguntas…'}</p>
+          </motion.section>
         )}
 
         {(fase === 'encuesta' || fase === 'test') && (
@@ -110,7 +117,7 @@ export default function Usuario() {
               {fase === 'test' && actual && !cargando && (
                 <Deslizable key={`t${actual.k}`} dir={1}>
                   <section className="tarjeta paso brillo">
-                    <p className="paso-meta"><Sparkles size={16} aria-hidden /> Pregunta {actual.k + 1} de {actual.total} · {actual.habilidad}</p>
+                    <p className="paso-meta">Pregunta {actual.k + 1} de {actual.total} · {actual.habilidad}</p>
                     <h2 className="pregunta-mate">{actual.texto}</h2>
                     <motion.div className="opciones" role="radiogroup" aria-label="Opciones" variants={cascada(0.05, 0.08)} initial="initial" animate="animate">
                       {actual.opciones.map((o) => (
@@ -136,7 +143,7 @@ export default function Usuario() {
           <motion.section key="evaluando" className="tarjeta pensando marco-paso" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, transition: { duration: 0.2 } }} aria-live="polite">
             <RedNeuronal etiquetas={false} className="red" intensidad={1.6} />
             <h2>Analizando tus respuestas</h2>
-            <p className="tenue">Cinco redes neuronales calculan tu riesgo y el mapa autoorganizado busca tu perfil.</p>
+            <p className="tenue">Un ensamble de redes neuronales calcula tu riesgo y el mapa autoorganizado busca tu perfil.</p>
           </motion.section>
         )}
 
@@ -149,7 +156,10 @@ export default function Usuario() {
         {fase === 'error' && (
           <motion.section key="error" className="tarjeta paso marco-paso" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <Aviso texto={error} />
-            <button className="btn sec" onClick={() => setFase('inicio')}><ArrowLeft size={18} aria-hidden /> Volver al inicio</button>
+            <div className="fila">
+              <button className="btn sec" onClick={() => navigate('/')}><ArrowLeft size={18} aria-hidden /> Volver al inicio</button>
+              <button className="btn grad" onClick={() => window.location.reload()}>Intentar de nuevo <RotateCcw size={16} aria-hidden /></button>
+            </div>
           </motion.section>
         )}
       </AnimatePresence>
@@ -201,35 +211,6 @@ function Opcion({ sel, onClick, children }) {
       </span>
       {children}
     </motion.button>
-  )
-}
-
-function Inicio({ listo, aviso, error, onEmpezar }) {
-  return (
-    <section className="hero">
-      <motion.div variants={cascada(0.08, 0.05)} initial="initial" animate="animate">
-        <motion.span variants={hijo} className="chip"><Sparkles size={14} aria-hidden /> Matemáticas II, FIME</motion.span>
-        <motion.h1 variants={hijo}>Descubre cómo vas a llegar a <span className="grad-txt">Matemáticas II</span></motion.h1>
-        <motion.p variants={hijo} className="lead">Contesta una encuesta corta sobre tus hábitos y 15 preguntas de matemáticas. Al final verás tu nivel de riesgo, tu calificación esperada y un plan de estudio hecho para ti.</motion.p>
-        <motion.ul variants={hijo} className="puntos">
-          <li><Clock size={18} aria-hidden /> Unos 15 a 20 minutos</li>
-          <li><Lock size={18} aria-hidden /> Sin nombre, matrícula ni correo</li>
-          <li><Network size={18} aria-hidden /> Lo calcula un ensamble de redes neuronales</li>
-        </motion.ul>
-        <motion.div variants={hijo}>
-          <motion.button className="btn grad grande" disabled={!listo} onClick={onEmpezar} {...presion}>
-            {listo ? <>Empezar el test <ArrowRight size={20} aria-hidden /></> : 'Preparando…'}
-          </motion.button>
-          {!listo && !error && (
-            <p className="estado-api" aria-live="polite"><span className="punto-vivo" aria-hidden /> {aviso || 'Cargando preguntas…'}</p>
-          )}
-          {error && <Aviso texto={error} />}
-        </motion.div>
-      </motion.div>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}>
-        <RedNeuronal />
-      </motion.div>
-    </section>
   )
 }
 

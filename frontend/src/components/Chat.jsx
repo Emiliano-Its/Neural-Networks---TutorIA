@@ -1,13 +1,18 @@
-import { Bot, MessageCircle, Send, X } from 'lucide-react'
+import { Send, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '../api.js'
 import { EASE } from '../movimiento.js'
 
 // Chat flotante. El backend (api/chat.py) decide la respuesta; hoy es por reglas,
 // mañana puede ser un LLM sin tocar este componente.
-export default function Chat({ contexto }) {
-  const [abierto, setAbierto] = useState(false)
+// abierto/setAbierto son opcionales: la landing los pasa para abrir el chat desde fuera.
+// sinBoton: en la landing el botón flotante es su propio .tl-chat; aquí solo va el panel.
+export default function Chat({ contexto, abierto: abiertoExt, setAbierto: setAbiertoExt, sinBoton = false }) {
+  const [abiertoInt, setAbiertoInt] = useState(false)
+  const abierto = abiertoExt ?? abiertoInt
+  const setAbierto = setAbiertoExt ?? setAbiertoInt
   const [mensajes, setMensajes] = useState([
     { id: 0, de: 'bot', texto: 'Hola, soy el asistente de TutorIA. Pregúntame sobre el test, tu resultado o cómo estudiar.' },
   ])
@@ -39,8 +44,9 @@ export default function Chat({ contexto }) {
     }
   }
 
-  return (
-    <div className="chat">
+  // portal a <body>: las transiciones de página animan filter/transform, que romperían position: fixed
+  return createPortal(
+    <div className={`chat ${sinBoton ? 'sin-boton' : ''}`}>
       <AnimatePresence>
         {abierto && (
           <motion.div className="chat-panel" role="dialog" aria-label="Asistente de TutorIA"
@@ -49,8 +55,8 @@ export default function Chat({ contexto }) {
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}>
             <div className="chat-cab">
               <div className="quien">
-                <span className="avatar"><Bot size={18} aria-hidden /></span>
-                <div><b>Asistente TutorIA</b><small>En línea</small></div>
+                <span className="avatar"><IconoChat size={16} /></span>
+                <div><b>TutorIA</b><small>Asistente de estudio</small></div>
               </div>
               <button className="icono-btn" aria-label="Cerrar el chat" onClick={() => setAbierto(false)}><X size={20} /></button>
             </div>
@@ -80,15 +86,27 @@ export default function Chat({ contexto }) {
           </motion.div>
         )}
       </AnimatePresence>
-      <motion.button className="chat-boton" aria-label={abierto ? 'Cerrar el asistente' : 'Abrir el asistente'} aria-expanded={abierto}
-        onClick={() => setAbierto(!abierto)} whileHover={{ scale: 1.06 }} whileTap={{ scale: 0.94 }}>
+      {/* mismo botón que .tl-chat de la landing */}
+      {!sinBoton && <button type="button" className="chat-boton" aria-label={abierto ? 'Cerrar el chat' : 'Pregúntale a TutorIA'} aria-expanded={abierto}
+        onClick={() => setAbierto(!abierto)}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.span key={abierto ? 'x' : 'm'} style={{ display: 'grid' }}
-            initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.18 }}>
-            {abierto ? <X size={24} /> : <MessageCircle size={24} />}
+            initial={{ opacity: 0, scale: 0.7 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} transition={{ duration: 0.18 }}>
+            {abierto ? <X size={20} /> : <IconoChat size={20} />}
           </motion.span>
         </AnimatePresence>
-      </motion.button>
-    </div>
+        {!abierto && <span className="chat-tip">Pregúntale a TutorIA</span>}
+      </button>}
+    </div>,
+    document.body,
+  )
+}
+
+function IconoChat({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 5h16v11H9l-5 4V5Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+      <path d="M8.5 10.5h.01M12 10.5h.01M15.5 10.5h.01" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
   )
 }

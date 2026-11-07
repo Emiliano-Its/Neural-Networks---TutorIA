@@ -1,29 +1,30 @@
-// Tokens de movimiento compartidos (motion/react). Solo se animan transform y opacity.
-export const EASE = [0.22, 1, 0.36, 1] // expo-out
+// Tokens de movimiento (motion/react), alineados con la landing:
+// curva cubic-bezier(.16, 1, .3, 1) y entradas "de borroso a nítido" (tl-rise).
+// Solo se animan transform, opacity y filter.
+export const EASE = [0.16, 1, 0.3, 1]
 
-// Entrada 300-400 ms; salida más corta (200-250 ms)
 export const pagina = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.38, ease: EASE } },
-  exit: { opacity: 0, y: -8, transition: { duration: 0.22, ease: [0.4, 0, 1, 1] } },
+  initial: { opacity: 0, y: 14, filter: 'blur(8px)' },
+  animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.7, ease: EASE } },
+  exit: { opacity: 0, y: -16, filter: 'blur(6px)', transition: { duration: 0.3, ease: EASE } },
 }
 
-// Contenedor con hijos en cascada
-export const cascada = (paso = 0.05, retraso = 0) => ({
+export const cascada = (paso = 0.06, retraso = 0) => ({
   animate: { transition: { staggerChildren: paso, delayChildren: retraso } },
 })
 
 export const hijo = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.36, ease: EASE } },
+  initial: { opacity: 0, y: 14, filter: 'blur(8px)' },
+  animate: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.8, ease: EASE } },
 }
 
 // Aparece al hacer scroll, una sola vez
 export const alVer = {
-  initial: { opacity: 0, y: 18 },
-  whileInView: { opacity: 1, y: 0 },
+  initial: { opacity: 0, y: 14, filter: 'blur(8px)' },
+  whileInView: { opacity: 1, y: 0, filter: 'blur(0px)' },
   viewport: { once: true, margin: '-60px' },
-  transition: { duration: 0.5, ease: EASE },
+  transition: { duration: 0.9, ease: EASE },
 }
 
-export const presion = { whileHover: { scale: 1.02 }, whileTap: { scale: 0.98 }, transition: { duration: 0.16 } }
+// El botón principal ya se mueve por CSS (como .tl-cta); esto queda para botones secundarios
+export const presion = { whileTap: { scale: 0.98 }, transition: { duration: 0.16 } }

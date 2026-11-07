@@ -27,12 +27,12 @@ export default function RedNeuronal({ etiquetas = true, className = 'red-hero', 
     <svg className={className} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Red neuronal: entradas del alumno, capas ocultas y tres niveles de riesgo">
       <defs>
         <linearGradient id="g-pulso" x1="0" x2="1">
-          <stop offset="0" stopColor="#A78BFA" />
-          <stop offset="1" stopColor="#22D3EE" />
+          <stop offset="0" stopColor="#ebe7de" />
+          <stop offset="1" stopColor="#d2b273" />
         </linearGradient>
         <radialGradient id="g-brillo">
-          <stop offset="0" stopColor="#22D3EE" stopOpacity=".9" />
-          <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
+          <stop offset="0" stopColor="#d2b273" stopOpacity=".95" />
+          <stop offset="1" stopColor="#d2b273" stopOpacity="0" />
         </radialGradient>
       </defs>
       {aristas.map((e, k) => (
