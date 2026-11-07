@@ -1,77 +1,117 @@
 # TutorIA UANL
 
-App en Python con Streamlit que predice el desempeño en **Matemáticas II** con
-redes neuronales implementadas desde cero con NumPy (SOM y MLP), a partir de un
-simulador de alumnos que sigue [`docs/especificacion-simulador.md`](docs/especificacion-simulador.md).
+TutorIA es un tutor que estima el **riesgo de reprobar Matemáticas II** (y la nota esperada)
+de un alumno de ingeniería de la UANL. Usa sus calificaciones de primer semestre, una encuesta
+de hábitos de estudio y un test adaptativo corto. Con eso le da un plan de estudio personalizado.
 
-- **Simulador**: 3,600 alumnos de 1er semestre (semilla 42); los que aprueban
-  Matemáticas I (~2,000) forman el dataset de Mate II. Variables ocultas
-  (q, c, θ, k, A) separadas de los observables.
-- **28 entradas**: 7 calificaciones de 1er semestre, A2, encuesta B1–B7, C1–C3,
-  D1 + indicador de "no respondió", 7 dominios del test adaptativo y tiempo promedio.
-- **SOM** (26 entradas, sin D1) para agrupar alumnos.
-- **MLP** para el nivel de riesgo (bajo ≥80 / medio 70–79.9 / alto <70) y para la nota (regresión).
+Las redes neuronales están **implementadas desde cero con NumPy**, sin frameworks de deep learning:
 
-## Instalación
+- **SOM** (mapa autoorganizado de Kohonen) para agrupar perfiles de alumnos.
+- **MLP** para clasificar el riesgo (bajo ≥ 80 · medio 70–79.9 · alto < 70) y para estimar la nota.
+- **Test adaptativo** con Teoría de Respuesta al Ítem (TRI 3PL) sobre 7 habilidades de cálculo.
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
+El alumno puede responder con un formulario o conversando con TutorIA en un chat.
+Un panel de administrador muestra la arquitectura y las métricas, y permite ajustar
+hiperparámetros y reentrenar.
 
-## Uso
+## Stack
 
-```bash
-streamlit run app.py              # la app
-python -m scripts.calibrar        # revisa las metas de calibración
-python -m scripts.calibrar --guardar   # además regenera data/alumnos.csv y data/ocultas.csv
-python -m scripts.prueba_uci      # descarga UCI 697 y compara MLP vs. logística
-pytest                            # pruebas
-```
+| Capa | Tecnologías |
+|---|---|
+| Backend | Python 3, FastAPI, Uvicorn, NumPy, pandas |
+| Frontend | React 19, Vite, React Router, Motion, lucide-react, oxlint |
+| App original (legacy) | Streamlit, Matplotlib |
+| Pruebas | pytest (incluye pruebas de las páginas de Streamlit con `AppTest`) |
 
 ## Estructura
 
 ```
-app.py, pages/          # app: Simulador, SOM, MLP, Datos reales, Encuesta, Test, Mi resultado
-tutoria/simulador.py    # simulador según la especificación
-tutoria/som.py          # SOM de Kohonen
-tutoria/mlp.py          # MLP: binaria, multiclase y regresión
-tutoria/experimento.py  # 28 entradas, división 70/15/15, entrenamiento y curva de horas
-scripts/calibrar.py     # metas de calibración
-scripts/prueba_uci.py   # prueba de realidad con el dataset UCI 697
-tutoria/datos_reales.py # validación del CSV de alumnos reales
-tutoria/encuesta.py     # las 13 preguntas de la encuesta
-tutoria/tri.py          # TRI 3PL compartida (simulador y página del test)
-tutoria/banco.py        # carga data/banco_preguntas.json
-tutoria/panel.py        # lógica del panel individual
-data/                   # alumnos.csv (observables) y ocultas.csv (nunca entra a la red)
-docs/                   # especificación
+.
+├── backend/
+│   ├── api/            # API FastAPI: rutas, servicio de modelos, flujo, integridad, chat, config
+│   ├── tutoria/        # núcleo: simulador, SOM, MLP, TRI, encuesta, experimento
+│   ├── scripts/        # calibración del simulador y prueba con el dataset UCI 697
+│   ├── tests/          # pruebas con pytest
+│   ├── data/           # datos sintéticos, banco de preguntas y plantilla para datos reales
+│   ├── config.json     # hiperparámetros ajustables desde el panel de admin
+│   └── requirements.txt
+├── frontend/           # app web en React + Vite
+├── legacy/streamlit/   # primera versión de la app (Streamlit)
+├── design/landing/     # diseño fuente de la landing y logo de TutorIA
+├── docs/               # especificación del simulador y guía del frontend
+├── pytest.ini
+└── run_dev.sh          # levanta API + frontend en un solo comando
 ```
 
-## Abrir la app desde otra computadora (SSH)
+## Instalación
 
-La app corre en esta laptop (Debian). Para verla desde otra computadora sin
-exponer el puerto a la red, usa un túnel SSH:
+Requisitos: Python 3.11+ y Node.js 20+.
 
-1. En la laptop, deja corriendo la app (escucha en el puerto 8501):
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+cd frontend && npm install && cd ..
+```
 
-   ```bash
-   cd ~/Projects/tutoria-uanl && source .venv/bin/activate
-   streamlit run app.py --server.headless true
-   ```
+## Cómo correrlo
 
-2. En la otra computadora, abre el túnel (cambia `usuario` y `ip-de-la-laptop`;
-   la IP sale con `hostname -I` en la laptop):
+Todo junto (API en `http://127.0.0.1:8000` y app en `http://localhost:5173`):
 
-   ```bash
-   ssh -L 8501:localhost:8501 usuario@ip-de-la-laptop
-   ```
+```bash
+./run_dev.sh
+```
 
-   Deja esa terminal abierta mientras uses la app.
+O por separado, en dos terminales:
 
-3. En el navegador de la otra computadora entra a <http://localhost:8501>.
+```bash
+uvicorn api.main:app --app-dir backend --reload   # API; documentación en /docs
+cd frontend && npm run dev                        # app web
+```
 
-Si el puerto 8501 ya está ocupado en la otra computadora, usa otro local, por
-ejemplo `ssh -L 8502:localhost:8501 ...` y abre <http://localhost:8502>.
-La laptop necesita el servidor SSH activo (`sudo apt install openssh-server`).
+Al arrancar, la API entrena los modelos en unos segundos. `GET /api/salud` dice cuándo terminó.
+El panel de administrador está en `/admin`. Su contraseña se configura con la variable de
+entorno `ADMIN_PASSWORD` (ver [`docs/frontend.md`](docs/frontend.md)).
+
+La app original en Streamlit sigue funcionando:
+
+```bash
+PYTHONPATH=backend streamlit run legacy/streamlit/app.py
+```
+
+## Pruebas y calidad
+
+```bash
+pytest                                   # desde la raíz (pytest.ini apunta a backend/)
+cd frontend && npm run lint && npm run build
+```
+
+Scripts del simulador (desde `backend/`):
+
+```bash
+cd backend
+python -m scripts.calibrar               # revisa las metas de calibración
+python -m scripts.calibrar --guardar     # además regenera data/alumnos.csv y data/ocultas.csv
+python -m scripts.prueba_uci             # descarga UCI 697 y compara el MLP con una logística
+```
+
+## Datos
+
+El repositorio **no contiene datos personales**.
+
+- `backend/data/alumnos.csv` y `ocultas.csv`: alumnos **sintéticos** del simulador
+  (`backend/tutoria/simulador.py`, semilla 42). Genera 3,600 alumnos de primer semestre, y los
+  ~2,000 que aprueban Matemáticas I forman el dataset de Mate II. Las variables ocultas
+  (q, c, θ, k, A) se guardan aparte y nunca entran a la red. El diseño completo está en
+  [`docs/especificacion-simulador.md`](docs/especificacion-simulador.md).
+- **UCI 697**, *Predict Students' Dropout and Academic Success* (Realinho et al., 2021,
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): dataset público para una prueba
+  de realidad del MLP. Se descarga con `scripts.prueba_uci` y no se sube al repositorio.
+- `backend/data/plantilla_alumnos_reales.csv`: formato para evaluar el modelo con datos reales.
+  Si usas datos de alumnos reales, no los subas al repositorio.
+
+## Créditos
+
+Proyecto de redes neuronales de Emiliano ([@Emiliano-Its](https://github.com/Emiliano-Its)), UANL.
+Dataset UCI 697: V. Realinho, J. Machado, L. Baptista y M. V. Martins (2021),
+UCI Machine Learning Repository.
