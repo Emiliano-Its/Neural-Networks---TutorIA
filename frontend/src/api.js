@@ -1,5 +1,6 @@
-// Cliente de la API (FastAPI). Cambia la URL con VITE_API_URL en frontend/.env
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// Cliente de la API (FastAPI). Por defecto usa rutas relativas (/api/...) que el
+// proxy de Vite reenvía a http://127.0.0.1:8000. Para otra URL: VITE_API_URL en frontend/.env
+const BASE = import.meta.env.VITE_API_URL ?? ''
 
 async function pedir(ruta, { metodo = 'GET', cuerpo, password } = {}) {
   const headers = { 'Content-Type': 'application/json' }
@@ -10,7 +11,15 @@ async function pedir(ruta, { metodo = 'GET', cuerpo, password } = {}) {
       method: metodo, headers, body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
     })
   } catch {
-    throw new Error('No se pudo conectar con la API. ¿Está corriendo uvicorn en el puerto 8000?')
+    const e = new Error('No se pudo conectar con la API. ¿Está corriendo uvicorn en el puerto 8000?')
+    e.status = 0
+    throw e
+  }
+  if (res.status === 502 || res.status === 504) {
+    // el proxy de Vite responde así cuando la API todavía no está arriba
+    const e = new Error('La API todavía no responde. ¿Está corriendo uvicorn en el puerto 8000?')
+    e.status = 0
+    throw e
   }
   const datos = await res.json().catch(() => ({}))
   if (!res.ok) {
@@ -23,6 +32,7 @@ async function pedir(ruta, { metodo = 'GET', cuerpo, password } = {}) {
 }
 
 export const api = {
+  salud: () => pedir('/salud'),
   preguntas: () => pedir('/preguntas'),
   siguiente: (semilla, respuestas) => pedir('/test/siguiente', { metodo: 'POST', cuerpo: { semilla, respuestas } }),
   evaluar: (encuesta, semilla, respuestas) => pedir('/evaluar', { metodo: 'POST', cuerpo: { encuesta, semilla, respuestas } }),
@@ -32,4 +42,22 @@ export const api = {
   config: (password) => pedir('/admin/config', { password }),
   guardarConfig: (password, valores) => pedir('/admin/config', { metodo: 'PUT', cuerpo: valores, password }),
   reentrenar: (password) => pedir('/admin/reentrenar', { metodo: 'POST', password }),
+}
+
+// Espera a que la API esté arriba y los modelos entrenados (reintenta cada 2 s).
+export async function esperarApi(alAvisar, intentos = 60) {
+  for (let i = 0; i < intentos; i++) {
+    try {
+      const s = await api.salud()
+      if (s.listo) return
+      if (s.error) throw new Error(`Falló el entrenamiento: ${s.error}`)
+      alAvisar?.('Entrenando los modelos… (unos segundos)')
+    } catch (e) {
+      if (e.status !== 0 && e.status !== undefined) throw e
+      if (e.message.startsWith('Falló')) throw e
+      alAvisar?.('Conectando con la API…')
+    }
+    await new Promise((r) => setTimeout(r, 2000))
+  }
+  throw new Error('No se pudo conectar con la API. ¿Está corriendo uvicorn en el puerto 8000?')
 }

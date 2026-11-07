@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../api.js'
+import { api, esperarApi } from '../api.js'
 import CampoConfig from '../components/CampoConfig.jsx'
 
 const leer = () => { try { return sessionStorage.getItem('admin_pw') ?? '' } catch { return '' } }
@@ -14,7 +14,7 @@ export default function Admin() {
 
   const cargarInfo = useCallback(() => {
     if (!pw) return
-    api.info(pw).then(setInfo).catch((e) => {
+    esperarApi().then(() => api.info(pw)).then(setInfo).catch((e) => {
       if (e.status === 401) { escribir(''); setPw('') }
       setError(e.message)
     })

@@ -29,7 +29,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TutorIA UANL API", version="1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    # el frontend normalmente pasa por el proxy de Vite (sin CORS); esto cubre
+    # llamadas directas desde cualquier puerto local (5173, 5174, 4173…)
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?",
     allow_methods=["*"], allow_headers=["*"],
 )
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api } from '../api.js'
+import { api, esperarApi } from '../api.js'
 import Chat from '../components/Chat.jsx'
 import Resultado from '../components/Resultado.jsx'
 
@@ -16,10 +16,12 @@ export default function Usuario() {
   const [eleccion, setEleccion] = useState(null)
   const [resultado, setResultado] = useState(null)
   const [cargando, setCargando] = useState(false)
+  const [aviso, setAviso] = useState('')
   const t0 = useRef(0)
 
   useEffect(() => {
-    api.preguntas().then((p) => {
+    esperarApi(setAviso).then(() => api.preguntas()).then((p) => {
+      setAviso('')
       setPreguntas(p)
       setEncuesta(valoresIniciales(p.encuesta))
     }).catch((e) => setError(e.message))
@@ -84,7 +86,7 @@ export default function Usuario() {
         </div>
       )}
 
-      {fase === 'inicio' && <Inicio listo={!!preguntas} onEmpezar={empezar} />}
+      {fase === 'inicio' && <Inicio listo={!!preguntas} aviso={aviso} onEmpezar={empezar} />}
 
       {fase === 'encuesta' && preguntas && (
         <PasoEncuesta
@@ -140,7 +142,7 @@ export default function Usuario() {
   )
 }
 
-function Inicio({ listo, onEmpezar }) {
+function Inicio({ listo, aviso, onEmpezar }) {
   return (
     <section className="hero">
       <p className="etiqueta dorado">Matemáticas II · FIME</p>
@@ -153,6 +155,7 @@ function Inicio({ listo, onEmpezar }) {
         <li>🧠 Lo calcula un ensamble de redes neuronales</li>
       </ul>
       <button className="btn grande" disabled={!listo} onClick={onEmpezar}>{listo ? 'Comenzar' : 'Cargando…'}</button>
+      {aviso && <p className="tenue-claro">{aviso}</p>}
     </section>
   )
 }

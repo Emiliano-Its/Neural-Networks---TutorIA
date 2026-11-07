@@ -180,3 +180,4 @@ input[type=range] { width: 100%; accent-color: var(--azul); }
 .campo-config.cambiado input, .campo-config.cambiado select { border-color: var(--dorado); }
 .barra-guardar { position: sticky; bottom: 0; background: var(--fondo); padding: 12px 0; border-top: 1px solid var(--borde); display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .plan td, .plan th { white-space: nowrap; }
+.tenue-claro { color: #c9d6ef; font-size: .92rem; margin-top: 12px; }
