@@ -339,19 +339,23 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 }
 .chat.sin-boton { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 20; }
 
-/* ---------- malla "más lejos" (landing y pantallas internas) ----------
-   mesh.webp mide 1080×1920 (vertical). Con background-size: cover en pantallas
-   anchas se ampliaba ~1.4× (≈2.9× en pantallas 2x) y se veía pixeleada.
-   En pantallas de 1000 px o más se muestra a 1000 px de ancho (por debajo de su
-   tamaño natural, aun con la deriva de 1.06×) y se funde con el grafito a los lados.
-   En pantallas más angostas, cover ya la reduce, así que no se toca.
-   Se sobrescribe aquí para dejar LandingTutorIA.css idéntico al original. */
-@media (min-width: 1000px) {
+/* ---------- imagen de fondo (landing y pantallas internas) ----------
+   Malla en perspectiva que eligió Emiliano (1080×2340). En pantallas horizontales se
+   usa la misma imagen rotada 90° (2340×1080, assets/malla-horizontal.webp), así cover
+   la llena sin ampliarla por encima de su tamaño en pantallas de hasta ~2300 px;
+   en pantallas verticales (celular) se usa la vertical.
+   Se sobrescribe aquí (con !important porque la landing la pone en línea) para dejar
+   LandingTutorIA.jsx/.css idénticos al original. */
+.tl-root .tl-mesh-img,
+.fondo-malla {
+  background-image: url('./assets/malla-vertical.webp') !important;
+  background-size: cover !important;
+  background-position: center 50% !important;
+}
+/* esta malla tiene mucho más contraste que la anterior: en la landing se atenúa un poco
+   (la original usa contrast 1.25 / brightness 1.15) para que el texto de los pasos se lea bien */
+.tl-root .tl-mesh-img { filter: contrast(1.1) brightness(.72); }
+@media (min-aspect-ratio: 1/1) {
   .tl-root .tl-mesh-img,
-  .fondo-malla {
-    background-size: 1000px auto;
-    background-position: center 40%;
-    -webkit-mask-image: linear-gradient(to right, transparent calc(50% - 470px), #000 calc(50% - 230px), #000 calc(50% + 230px), transparent calc(50% + 470px));
-            mask-image: linear-gradient(to right, transparent calc(50% - 470px), #000 calc(50% - 230px), #000 calc(50% + 230px), transparent calc(50% + 470px));
-  }
+  .fondo-malla { background-image: url('./assets/malla-horizontal.webp') !important; }
 }
