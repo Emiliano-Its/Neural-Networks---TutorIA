@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Chat from '../components/Chat.jsx'
 import LandingTutorIA from '../components/LandingTutorIA/LandingTutorIA.jsx'
 
-// Pantalla de inicio: la landing tal cual (TutorIA-landing-react) conectada a las rutas de la app.
+// Pantalla de inicio: la landing tal cual (design/landing) conectada a las rutas de la app.
 export default function Inicio() {
   const navigate = useNavigate()
   const [chat, setChat] = useState(false)
