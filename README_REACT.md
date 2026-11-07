@@ -43,7 +43,11 @@ plano (~10 s). `GET /api/salud` dice si ya terminó.
 |---|---|---|
 | GET | `/api/preguntas` | Encuesta (13 preguntas) y banco del test (sin marcar la correcta) |
 | POST | `/api/test/siguiente` | Siguiente pregunta del test adaptativo dadas las respuestas previas |
-| POST | `/api/evaluar` | Encuesta + 15 respuestas → riesgo, probabilidades, nota, cluster SOM, factores, temas, plan y explicación |
+| GET | `/api/materias` | Catálogo de materias objetivo (`api/materias.json`) y opciones de oportunidad |
+| GET | `/api/preguntas?materia=<id>` | Materias relevantes (calificación + oportunidad) y encuesta sin A1/A2 para esa materia |
+| POST | `/api/calificaciones/validar` | Valida y normaliza `{cal_x: {cal, oportunidad}}`; dice cuántas cuentan como reprobadas |
+| POST | `/api/conversacion/interpretar` | Modo conversación: entiende texto libre de un paso (p. ej. «saqué 85 en segunda») o pide aclarar |
+| POST | `/api/evaluar` | `{materia, calificaciones, encuesta, semilla, respuestas}` → riesgo, probabilidades, nota, cluster SOM, factores, temas, plan y explicación (también acepta el formato anterior con `cal_*` y `A2` en la encuesta) |
 | POST | `/api/chat` | Chatbot por reglas (acepta el resultado como contexto) |
 | POST | `/api/admin/login` | Verifica la contraseña |
 | GET | `/api/admin/info` | Arquitectura, métricas e hiperparámetros en uso |
@@ -79,3 +83,42 @@ frontend/src/components/CampoConfig.jsx # control genérico por tipo de variable
 
 `api/chat.py` define la interfaz `responder(mensaje, historial, contexto)`. Crea otra
 clase con ese método y devuélvela en `obtener_chatbot()`. El frontend no cambia.
+
+## Flujo del alumno
+
+1. `/` portada (landing). «Comenzar el test» lleva a `/test`.
+2. `/test` pide elegir el modo: **formulario** o **conversación con TutorIA**. Los dos usan el mismo
+   estado (`frontend/src/components/flujo/estado.js`), así que se puede cambiar de modo en cualquier
+   momento sin perder lo contestado, y con las mismas respuestas dan el mismo resultado.
+3. Pasos (iguales en ambos modos): materia que va a cursar → calificación + oportunidad de cada
+   materia relevante → hábitos (B1–D1) → test adaptativo de 15 preguntas (lo decide
+   `/api/test/siguiente`) → `/api/evaluar` → resultado.
+
+Las materias reprobadas (A2) ya no se preguntan: `api/flujo.py` las deduce de las oportunidades
+(reprobada = oportunidad > 1 o no acreditada). Ese archivo es el único lugar donde se traduce lo que
+contesta el alumno a las 28 entradas del modelo.
+
+El chat flotante solo aparece en la portada. El modo conversación tiene preparado (sin
+implementar) el campo `adjuntos` en `/api/conversacion/interpretar` para mandar imágenes en el futuro.
+
+## Agregar una materia
+
+1. En `api/materias.json` agrega una entrada a `materias`:
+   ```json
+   {
+     "id": "fisica2", "nombre": "Física II", "semestre": 2, "disponible": true,
+     "alias": ["fisica 2"],
+     "relevantes": [
+       {"clave": "cal_fisica1", "nombre": "Física I", "semestre": 1, "requisito": true},
+       {"clave": "cal_mate1", "nombre": "Matemáticas I", "semestre": 1}
+     ]
+   }
+   ```
+   Con `"disponible": false` aparece en el selector como «Próximamente» y no se puede elegir.
+2. **Hace falta un modelo entrenado para esa materia.** Hoy el ensamble de MLP y el SOM se entrenaron
+   con datos de Matemáticas II y esperan exactamente las 7 calificaciones de 1er semestre de esa
+   materia. Para otra materia hay que: simular u obtener datos con sus materias relevantes como
+   entradas, entrenar sus modelos (por ejemplo un `servicio.entrenar` por materia) y en
+   `api/main.py` (`/api/evaluar`) usar el modelo de la materia elegida.
+3. Si sus preguntas del test son otras, también hará falta su banco de preguntas
+   (`data/banco_preguntas.json` es el de Matemáticas II).

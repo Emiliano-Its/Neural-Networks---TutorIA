@@ -1,0 +1,26 @@
+{
+  "_comentario": "Catálogo de materias objetivo. Para agregar una materia, ver README_REACT.md («Agregar una materia»). Solo las que tienen \"disponible\": true se pueden elegir; cada una necesita un modelo entrenado con sus materias relevantes como entradas.",
+  "materias": [
+    {
+      "id": "mate2",
+      "nombre": "Matemáticas II",
+      "semestre": 2,
+      "disponible": true,
+      "alias": ["mate 2", "mate ii", "matematicas 2", "mat ii", "calculo integral"],
+      "relevantes": [
+        {"clave": "cal_mate1", "nombre": "Matemáticas I", "semestre": 1, "requisito": true},
+        {"clave": "cal_quimica", "nombre": "Química General", "semestre": 1},
+        {"clave": "cal_algebra", "nombre": "Álgebra para Ingeniería", "semestre": 1},
+        {"clave": "cal_fisica1", "nombre": "Física I", "semestre": 1},
+        {"clave": "cal_dibujo", "nombre": "Dibujo para Ingeniería", "semestre": 1},
+        {"clave": "cal_ti", "nombre": "Aplicación de las TI", "semestre": 1},
+        {"clave": "cal_comunicativa", "nombre": "Competencia comunicativa", "semestre": 1}
+      ]
+    },
+    {"id": "fisica2", "nombre": "Física II", "semestre": 2, "disponible": false, "alias": ["fisica 2"], "relevantes": []},
+    {"id": "mate3", "nombre": "Matemáticas III", "semestre": 3, "disponible": false, "alias": ["mate 3", "calculo multivariable"], "relevantes": []},
+    {"id": "probabilidad", "nombre": "Probabilidad y Estadística", "semestre": 3, "disponible": false, "alias": ["estadistica"], "relevantes": []},
+    {"id": "electricidad", "nombre": "Electricidad y Magnetismo", "semestre": 3, "disponible": false, "alias": ["electromagnetismo"], "relevantes": []},
+    {"id": "ecuaciones", "nombre": "Ecuaciones Diferenciales", "semestre": 4, "disponible": false, "alias": ["ecuaciones diferenciales", "ed"], "relevantes": []}
+  ]
+}

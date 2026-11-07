@@ -1,10 +1,13 @@
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
+import { lazy, Suspense } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import Fondo from './components/Fondo.jsx'
 import { pagina } from './movimiento.js'
-import Admin from './pages/Admin.jsx'
 import Inicio from './pages/Inicio.jsx'
 import Usuario from './pages/Usuario.jsx'
+
+// el panel de administrador se carga aparte: el alumno nunca lo descarga
+const Admin = lazy(() => import('./pages/Admin.jsx'))
 
 function Marca() {
   return (
@@ -45,7 +48,7 @@ export default function App() {
                 <motion.div key={loc.pathname} {...pagina}>
                   <Routes location={loc}>
                     <Route path="/test" element={<Usuario />} />
-                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/admin" element={<Suspense fallback={<div className="tarjeta"><div className="esqueleto" style={{ height: 200 }} /></div>}><Admin /></Suspense>} />
                     <Route path="*" element={<p>Esta página no existe. <Link to="/">Volver al inicio</Link></p>} />
                   </Routes>
                 </motion.div>

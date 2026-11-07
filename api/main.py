@@ -14,7 +14,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import config, servicio
+from . import config, flujo, servicio
 from .chat import obtener_chatbot
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
@@ -50,10 +50,27 @@ class Siguiente(BaseModel):
 
 
 class Evaluacion(BaseModel):
+    materia: str | None = Field(None, description="id de api/materias.json, p. ej. 'mate2'")
+    calificaciones: dict[str, dict] | None = Field(
+        None, description="{cal_<materia>: {cal: 0–100, oportunidad: 1–6 o 0 = no acreditada}}")
     encuesta: dict[str, Any] = Field(
-        description="cal_<materia> (0–100), A2, B1, B2 (0–1), B3, B4, B5, B6, B7, C1, C2, C3, D1 (o null)")
+        description="B1, B2 (0–1), B3, B4, B5, B6, B7, C1, C2, C3, D1 (o null). Formato anterior: "
+                    "también cal_<materia> y A2 (si no se manda materia/calificaciones).")
     semilla: int
     respuestas: list[Respuesta]
+
+
+class Interpretar(BaseModel):
+    paso: dict[str, Any] = Field(description="tipo: materia | calificacion | numero | likert | opcion_test, más sus datos")
+    texto: str
+    parcial: dict[str, Any] | None = None
+    # Reservado para adjuntar imágenes en el futuro (p. ej. foto del kárdex); hoy se ignora.
+    adjuntos: list[dict[str, Any]] = []
+
+
+class ValidarCalificaciones(BaseModel):
+    materia: str
+    calificaciones: dict[str, dict]
 
 
 class Mensaje(BaseModel):
@@ -87,9 +104,32 @@ def salud():
 
 
 @app.get("/api/preguntas")
-def preguntas():
-    """Encuesta (13 preguntas) y banco del test adaptativo (sin marcar la respuesta correcta)."""
-    return {"encuesta": servicio.preguntas_encuesta(), "test": servicio.banco_publico()}
+def preguntas(materia: str | None = None):
+    """Sin materia: encuesta original (13 preguntas) y banco del test.
+    Con ?materia=<id>: calificaciones + oportunidad de sus materias relevantes, la encuesta
+    sin A1/A2 (A2 se deduce de las oportunidades) y el banco del test."""
+    if materia is None:
+        return {"encuesta": servicio.preguntas_encuesta(), "test": servicio.banco_publico()}
+    return {**_400(flujo.preguntas, materia), "test": servicio.banco_publico()}
+
+
+@app.get("/api/materias")
+def materias():
+    """Catálogo de materias objetivo (api/materias.json)."""
+    return {"materias": flujo.materias(), "oportunidades": flujo.preguntas_oportunidades()}
+
+
+@app.post("/api/calificaciones/validar")
+def validar_calificaciones(req: ValidarCalificaciones):
+    """Valida y normaliza {cal_x: {cal, oportunidad}} y dice cuántas cuentan como reprobadas."""
+    cal = _400(flujo.validar_calificaciones, req.materia, req.calificaciones)
+    return {"calificaciones": cal, "reprobadas": sum(d["oportunidad"] != 1 for d in cal.values())}
+
+
+@app.post("/api/conversacion/interpretar")
+def interpretar(req: Interpretar):
+    """Modo conversación: entiende lo que escribió el alumno para un paso (o pide aclarar)."""
+    return _400(flujo.interpretar, req.paso, req.texto, req.parcial)
 
 
 @app.post("/api/test/siguiente")
@@ -101,7 +141,12 @@ def test_siguiente(req: Siguiente):
 @app.post("/api/evaluar")
 def evaluar(req: Evaluacion):
     """Encuesta + respuestas del test → riesgo, probabilidad, nota, cluster SOM y explicación."""
-    return _400(servicio.evaluar, req.encuesta, req.semilla, [r.model_dump() for r in req.respuestas])
+    respuestas = [r.model_dump() for r in req.respuestas]
+    if req.materia is None:  # formato anterior: la encuesta ya trae cal_* y A2
+        return _400(servicio.evaluar, req.encuesta, req.semilla, respuestas)
+    encuesta = _400(flujo.encuesta_modelo, req.materia, req.calificaciones or {}, req.encuesta)
+    nombre = flujo.materia(req.materia)["nombre"]
+    return _400(servicio.evaluar, encuesta, req.semilla, respuestas, nombre)
 
 
 @app.post("/api/chat")

@@ -251,7 +251,7 @@ def _limpio(v):
     return None if v is None or (isinstance(v, float) and np.isnan(v)) else v
 
 
-def evaluar(encuesta: dict, semilla: int, respuestas: list[dict]) -> dict:
+def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str = "Matemáticas II") -> dict:
     M = modelos()
     cfg, d = M.cfg, M.datos
     test = resultado_test(semilla, respuestas)
@@ -290,6 +290,7 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict]) -> dict:
         "habitos": hab.to_dict("records"),
         "test": {k: test[k] for k in ("dominios", "tiempo_promedio", "errores", "aciertos")},
         "umbrales": {"bajo": cfg["corte_bajo"], "alto": cfg["corte_alto"]},
+        "materia": materia,
     }
     res["explicacion"] = explicar(res)
     return res
@@ -306,7 +307,7 @@ def explicar(r: dict) -> list[str]:
         "alto": f"Hay riesgo de reprobar (nota menor a {u['alto']:g}). ¡Todavía hay tiempo de cambiarlo!",
     }
     out = [f"{textos[nivel]} El ensamble de redes le da {p:.0%} de probabilidad al riesgo {nivel}.",
-           f"Tu calificación esperada en Matemáticas II es {nota:.0f} (entre {lo:.0f} y {hi:.0f})."]
+           f"Tu calificación esperada en {r.get('materia', 'Matemáticas II')} es {nota:.0f} (entre {lo:.0f} y {hi:.0f})."]
     mejoras = [f for f in r["factores"] if not f["ya está bien"] and f["cambio en la nota"] > 0.3]
     if mejoras:
         f = mejoras[0]

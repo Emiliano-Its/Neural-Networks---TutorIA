@@ -105,7 +105,7 @@ export default function Resultado({ r, onRepetir }) {
       <motion.section className="tarjeta cta" {...alVer}>
         <div>
           <h3><LifeBuoy size={20} aria-hidden style={{ verticalAlign: '-3px', marginRight: 8, color: 'var(--accent)' }} />¿Quieres apoyo?</h3>
-          <p className="tenue">Acércate a la Coordinación de Tutorías o a las asesorías de Matemáticas. También puedes preguntarle al asistente del chat.</p>
+          <p className="tenue">Acércate a la Coordinación de Tutorías o a las asesorías de tu facultad. Este resultado es una estimación para orientarte, no una calificación.</p>
         </div>
         <motion.button className="btn sec" onClick={onRepetir} {...presion}><RotateCcw size={18} aria-hidden /> Hacer el test otra vez</motion.button>
       </motion.section>

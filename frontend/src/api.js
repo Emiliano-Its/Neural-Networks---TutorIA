@@ -35,7 +35,12 @@ export const api = {
   salud: () => pedir('/salud'),
   preguntas: () => pedir('/preguntas'),
   siguiente: (semilla, respuestas) => pedir('/test/siguiente', { metodo: 'POST', cuerpo: { semilla, respuestas } }),
-  evaluar: (encuesta, semilla, respuestas) => pedir('/evaluar', { metodo: 'POST', cuerpo: { encuesta, semilla, respuestas } }),
+  materias: () => pedir('/materias'),
+  preguntasMateria: (materia) => pedir(`/preguntas?materia=${encodeURIComponent(materia)}`),
+  validarCalificaciones: (materia, calificaciones) => pedir('/calificaciones/validar', { metodo: 'POST', cuerpo: { materia, calificaciones } }),
+  // adjuntos: reservado para imágenes (p. ej. foto del kárdex); el backend aún no las usa
+  interpretar: (paso, texto, parcial, adjuntos = []) => pedir('/conversacion/interpretar', { metodo: 'POST', cuerpo: { paso, texto, parcial, adjuntos } }),
+  evaluar: (cuerpo) => pedir('/evaluar', { metodo: 'POST', cuerpo }),
   chat: (mensaje, historial, contexto) => pedir('/chat', { metodo: 'POST', cuerpo: { mensaje, historial, contexto } }),
   login: (password) => pedir('/admin/login', { metodo: 'POST', cuerpo: { password } }),
   info: (password) => pedir('/admin/info', { password }),
