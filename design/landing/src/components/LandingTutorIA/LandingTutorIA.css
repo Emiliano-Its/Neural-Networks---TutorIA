@@ -1,0 +1,215 @@
+/* =========================================================================
+   TutorIA · Pantalla de inicio
+   Todo está bajo .tl-root para no chocar con estilos globales.
+   Capas (de atrás hacia adelante):
+     .tl-mesh-img  imagen de malla en gris (con zoom de entrada, deriva y parallax)
+     .tl-field     canvas en mix-blend multiply: tiñe la malla, ondas y brillo del cursor
+     .tl-vignette  oscurece el centro (legibilidad) y funde arriba/abajo con el fondo
+     contenido     nav, hero, pasos, chat
+   ========================================================================= */
+.tl-root {
+  /* Paleta: grafito neutro + oro viejo y guinda del escudo UANL, apagados */
+  --bg: #0c0d10;          /* grafito casi negro */
+  --bg-raise: #16171b;
+  --fg: #ebe7de;          /* beige claro (texto y botón) */
+  --muted: #8e95a5;
+  --faint: #4b5570;
+  --line: rgba(238, 241, 247, .09);
+  --accent: #d2b273;      /* oro viejo */
+  --accent-deep: #7e3a3c; /* guinda (solo en el resplandor del botón) */
+  --font-body: "Geist", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+.tl-root *, .tl-root *::before, .tl-root *::after { box-sizing: border-box; }
+
+/* ---------- Fondo ---------- */
+.tl-mesh { position: absolute; inset: 0; z-index: -3; overflow: hidden; pointer-events: none; }
+.tl-mesh-img {
+  position: absolute; inset: -4%;
+  background-position: center 40%; background-size: cover; background-repeat: no-repeat;
+  filter: contrast(1.25) brightness(1.15);
+  transform: translate3d(var(--px, 0px), var(--py, 0px), 0);
+  animation: tl-mesh-in 2.6s var(--ease-out) both, tl-drift 40s ease-in-out 2.6s infinite alternate;
+}
+@keyframes tl-mesh-in { from { opacity: 0; scale: 1.12; } to { opacity: 1; scale: 1; } }
+@keyframes tl-drift { to { scale: 1.06; rotate: .6deg; } }
+.tl-root.is-launching .tl-mesh-img { transition: opacity 1.2s ease; opacity: .75; }
+
+.tl-field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -2; display: block; mix-blend-mode: multiply; }
+.tl-vignette {
+  position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 50% 38%, rgba(12,13,16,.82) 0%, rgba(12,13,16,.35) 55%, transparent 80%),
+    linear-gradient(to bottom, var(--bg) 0%, transparent 18%, transparent 78%, var(--bg) 100%);
+}
+
+.tl-wrap {
+  width: 100%; max-width: 1200px; margin: 0 auto;
+  padding-left: max(24px, env(safe-area-inset-left, 0px));
+  padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- Nav ---------- */
+.tl-nav { display: flex; align-items: center; justify-content: space-between; padding-block: 22px; }
+.tl-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 500; font-size: 17px; letter-spacing: -.01em; color: var(--fg); text-decoration: none;
+}
+.tl-brand svg { display: block; }
+.tl-tag {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; color: var(--accent);
+  border: 1px solid rgba(210,178,115,.3); border-radius: 4px; padding: 2px 6px;
+}
+.tl-nav-link {
+  font: inherit; font-size: 14px; color: var(--muted); background: none; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px; border: 1px solid transparent;
+  transition: color .25s, border-color .25s, background .25s;
+}
+.tl-nav-link:hover { color: var(--fg); border-color: var(--line); background: rgba(255,255,255,.02); }
+.tl-nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Hero ---------- */
+.tl-hero {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding-block: 6vh 4vh; gap: 28px;
+}
+.tl-title {
+  font-family: var(--font-body); font-weight: 500; margin: 0; color: var(--fg);
+  font-size: clamp(40px, 6.6vw, 88px); line-height: 1.02; letter-spacing: -.045em; text-wrap: balance;
+}
+/* cada palabra entra de borroso a nítido, escalonadas (delay inline desde el JSX) */
+.tl-w { display: inline-block; animation: tl-rise 1.1s var(--ease-out) both; }
+.tl-w + .tl-w { margin-left: .26em; }
+.tl-title em { font-style: normal; color: var(--accent); }
+.tl-lead {
+  margin: 0; max-width: 46ch; color: var(--muted); font-size: clamp(15px, 1.4vw, 17.5px); text-wrap: pretty;
+  animation: tl-rise 1s var(--ease-out) .55s both;
+}
+@keyframes tl-rise { from { opacity: 0; transform: translateY(14px); filter: blur(8px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+.tl-cta-zone {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px; margin-top: 6px;
+  animation: tl-rise 1s var(--ease-out) .75s both;
+}
+/* resplandor bajo el botón: guiño a la flama de "Alere Flammam Veritatis" */
+.tl-beam {
+  position: absolute; left: 50%; top: 30px; width: 180px; height: 46vh; transform: translateX(-50%); z-index: -1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(210,178,115,.22), rgba(126,58,60,.10) 45%, transparent);
+  -webkit-mask: radial-gradient(50% 100% at 50% 0, #000 30%, transparent 75%);
+          mask: radial-gradient(50% 100% at 50% 0, #000 30%, transparent 75%);
+  filter: blur(10px); opacity: .8; transition: opacity .5s;
+}
+.tl-cta-zone:hover .tl-beam { opacity: 1; }
+.tl-cta {
+  position: relative; display: inline-flex; align-items: center; gap: 12px;
+  font: 500 16px/1 var(--font-body); color: var(--bg); background: var(--fg);
+  border: 0; border-radius: 999px; padding: 17px 22px 17px 28px; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.25) inset, 0 10px 40px -10px rgba(210,178,115,.55), 0 0 80px -20px rgba(210,178,115,.6);
+  transition: transform .4s var(--ease-out), box-shadow .4s var(--ease-out);
+}
+.tl-arrow {
+  display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  background: var(--bg); color: var(--fg); transition: transform .4s var(--ease-out);
+}
+.tl-cta:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(255,255,255,.3) inset, 0 16px 50px -10px rgba(210,178,115,.75), 0 0 120px -20px rgba(210,178,115,.8); }
+.tl-cta:hover .tl-arrow { transform: translateX(3px); }
+.tl-cta:active { transform: translateY(0) scale(.98); }
+.tl-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.tl-cta:disabled { cursor: default; }
+.tl-note { font-size: 13px; color: var(--faint); display: flex; align-items: center; gap: 8px; }
+
+/* ---------- Pasos ---------- */
+.tl-steps {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+  border-top: 1px solid var(--line); padding-block: 14px 76px;
+  animation: tl-fadein 1.2s ease 1s both;
+}
+@keyframes tl-fadein { from { opacity: 0; } to { opacity: 1; } }
+/* al pasar el cursor: panel de vidrio gris que se levanta, con brillo que sigue al cursor */
+.tl-step {
+  position: relative; min-width: 0; overflow: hidden;
+  display: grid; align-content: start; gap: 4px; padding: 20px 22px 22px;
+  border-radius: 22px; border: 1px solid transparent;
+  transition: transform .5s var(--ease-out), background-color .4s, border-color .4s, box-shadow .5s var(--ease-out), backdrop-filter .4s;
+}
+.tl-step::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,.07), transparent 70%);
+}
+.tl-step::after {
+  content: ""; position: absolute; left: 24px; right: 24px; top: 0; height: 1px; pointer-events: none; opacity: 0; transition: opacity .4s;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+}
+.tl-step:hover {
+  transform: translateY(-6px);
+  background-color: rgba(255,255,255,.035);
+  border-color: rgba(255,255,255,.09);
+  -webkit-backdrop-filter: blur(16px) saturate(.6); backdrop-filter: blur(16px) saturate(.6);
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.03) inset;
+}
+.tl-step:hover::before, .tl-step:hover::after { opacity: 1; }
+.tl-step h3, .tl-step p, .tl-step-n { position: relative; transition: color .4s; }
+.tl-step-n {
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; color: var(--faint);
+  display: flex; justify-content: space-between;
+}
+.tl-step-n b { font-weight: 400; color: var(--muted); }
+.tl-step h3 { margin: 6px 0 0; font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: var(--fg); }
+.tl-step p { margin: 0; font-size: 13.5px; color: var(--muted); }
+.tl-step:hover .tl-step-n { color: var(--muted); }
+.tl-step:hover .tl-step-n b { color: var(--fg); }
+.tl-step:hover p { color: #b4b9c6; }
+
+/* ---------- Chat flotante ---------- */
+.tl-chat {
+  position: fixed;
+  right: calc(24px + env(safe-area-inset-right, 0px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: rgba(22,23,27,.8); border: 1px solid var(--line); color: var(--fg); backdrop-filter: blur(8px);
+  transition: border-color .3s, transform .3s var(--ease-out);
+  z-index: 10;
+}
+.tl-chat:hover { border-color: rgba(210,178,115,.45); transform: translateY(-2px); }
+.tl-chat:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.tl-chat span {
+  position: absolute; right: 58px; white-space: nowrap; font-size: 13px; color: var(--fg);
+  background: var(--bg-raise); border: 1px solid var(--line); padding: 6px 10px; border-radius: 8px;
+  opacity: 0; transform: translateX(6px); pointer-events: none; transition: opacity .25s, transform .25s var(--ease-out);
+}
+.tl-chat:hover span, .tl-chat:focus-visible span { opacity: 1; transform: none; }
+
+/* ---------- Salida al empezar el test ---------- */
+.tl-root.is-launching .tl-title,
+.tl-root.is-launching .tl-lead,
+.tl-root.is-launching .tl-steps,
+.tl-root.is-launching .tl-nav { animation: tl-out .6s var(--ease-out) forwards; }
+.tl-root.is-launching .tl-cta-zone { animation: tl-out .6s var(--ease-out) .12s forwards; }
+@keyframes tl-out { to { opacity: 0; transform: translateY(-16px); filter: blur(6px); } }
+
+/* ---------- Responsive y accesibilidad ---------- */
+@media (max-width: 720px) {
+  .tl-steps { grid-template-columns: 1fr; }
+  .tl-hero { padding-block: 8vh 6vh; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-root *, .tl-root *::before, .tl-root *::after {
+    animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important;
+  }
+}
