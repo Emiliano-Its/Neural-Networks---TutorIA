@@ -9,7 +9,7 @@ from tutoria.banco import cargar
 from tutoria.experimento import entrenar_nota, entrenar_riesgo, preparar
 from tutoria.simulador import CLAVES_HABILIDADES, CLAVES_MATERIAS
 
-PAGINA = str(Path(__file__).resolve().parents[1] / "pages" / "7_Mi_resultado.py")
+PAGINA = str(Path(__file__).resolve().parents[2] / "legacy" / "streamlit" / "pages" / "7_Mi_resultado.py")
 
 ENCUESTA = {**{f"cal_{m}": 75.0 for m in CLAVES_MATERIAS}, "A2": 0, "B1": 4.0, "B2": 0.8,
             "B3": 5.5, "B4": 2, "B5": 20, "B6": 7, "B7": 1, "C1": 3, "C2": 85, "C3": 3,

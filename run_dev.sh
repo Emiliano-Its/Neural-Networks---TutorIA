@@ -7,12 +7,12 @@ cd "$(dirname "$0")"
 UVICORN=.venv/bin/uvicorn
 if [ ! -x "$UVICORN" ]; then
   echo "No encuentro $UVICORN. Crea el entorno e instala dependencias:"
-  echo "  python3 -m venv .venv && .venv/bin/pip install -r requirements.txt"
+  echo "  python3 -m venv .venv && .venv/bin/pip install -r backend/requirements.txt"
   exit 1
 fi
 if ! .venv/bin/python -c "import fastapi" 2>/dev/null; then
   echo "Instalando dependencias de Python (fastapi, uvicorn)..."
-  .venv/bin/pip install -r requirements.txt
+  .venv/bin/pip install -r backend/requirements.txt
 fi
 [ -d frontend/node_modules ] || (cd frontend && npm install)
 
@@ -24,7 +24,7 @@ for puerto in 8000 5173; do
   fi
 done
 
-"$UVICORN" api.main:app --reload --host 127.0.0.1 --port 8000 &
+"$UVICORN" api.main:app --app-dir backend --reload --reload-dir backend --host 127.0.0.1 --port 8000 &
 API=$!
 trap 'kill $API 2>/dev/null || true' EXIT INT TERM
 

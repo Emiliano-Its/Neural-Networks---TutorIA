@@ -25,7 +25,7 @@ tab_csv, tab_uci = st.tabs(["Subir CSV", "Prueba de realidad (UCI 697)"])
 
 # La pestaña UCI se dibuja primero porque la de CSV usa st.stop().
 with tab_uci:
-    ruta = Path("data/uci697_resultados.json")
+    ruta = Path(__file__).resolve().parents[3] / "backend" / "data" / "uci697_resultados.json"
     if not ruta.exists():
         st.info("Todavía no hay resultados. Corre `python -m scripts.prueba_uci`.")
     else:

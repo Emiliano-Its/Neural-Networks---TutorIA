@@ -8,7 +8,7 @@ from tutoria.banco import cargar
 from tutoria.simulador import CLAVES_HABILIDADES
 from tutoria.simulador import test_adaptativo as aplicar_test
 
-PAGINA = str(Path(__file__).resolve().parents[1] / "pages" / "6_Test.py")
+PAGINA = str(Path(__file__).resolve().parents[2] / "legacy" / "streamlit" / "pages" / "6_Test.py")
 
 
 def test_banco_valido_y_en_orden_del_simulador():

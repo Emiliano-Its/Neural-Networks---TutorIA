@@ -67,7 +67,7 @@ def main():
     n_ok = sum(m[2] for m in metas)
     print(f"\n{n_ok}/{len(metas)} metas cumplidas")
     if "--guardar" in sys.argv:
-        sim.guardar("data")
+        sim.guardar()
         print("Guardado data/alumnos.csv y data/ocultas.csv")
     return 0 if n_ok == len(metas) else 1
 

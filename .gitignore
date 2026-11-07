@@ -1,13 +1,26 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-.streamlit/secrets.toml
 *.egg-info/
-.DS_Store
 
-data/uci697/
-
-# frontend
-frontend/node_modules/
+# Node / frontend
+node_modules/
 frontend/dist/
+dist/
+
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Datos descargados (se obtienen con python -m scripts.prueba_uci)
+backend/data/uci697/
+
+# Editores, sistema y logs
+.vscode/
+.idea/
+.DS_Store
+*.log

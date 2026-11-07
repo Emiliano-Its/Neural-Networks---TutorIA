@@ -26,8 +26,9 @@ from tutoria.simulador import dividir_estratificado
 
 URL = ("https://archive.ics.uci.edu/static/public/697/"
        "predict+students+dropout+and+academic+success.zip")
-CARPETA = Path("data/uci697")
-SALIDA = Path("data/uci697_resultados.json")
+DATOS = Path(__file__).resolve().parents[1] / "data"
+CARPETA = DATOS / "uci697"
+SALIDA = DATOS / "uci697_resultados.json"
 CLASES = ["Dropout", "Enrolled", "Graduate"]
 NOMINALES = ["Marital status", "Application mode", "Course", "Previous qualification",
              "Nacionality", "Mother's qualification", "Father's qualification",

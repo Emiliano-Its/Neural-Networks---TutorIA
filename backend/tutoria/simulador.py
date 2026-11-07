@@ -153,8 +153,8 @@ class Simulacion:
     centro_habitos: float = 0.0
     params: dict = field(default_factory=dict)
 
-    def guardar(self, carpeta: str | Path = "data") -> None:
-        carpeta = Path(carpeta)
+    def guardar(self, carpeta: str | Path | None = None) -> None:
+        carpeta = Path(carpeta) if carpeta else Path(__file__).resolve().parents[1] / "data"
         carpeta.mkdir(parents=True, exist_ok=True)
         self.alumnos.to_csv(carpeta / "alumnos.csv", index=False)
         self.ocultas.to_csv(carpeta / "ocultas.csv", index=False)

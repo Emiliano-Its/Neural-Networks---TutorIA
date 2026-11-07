@@ -4,7 +4,7 @@ from pathlib import Path
 
 from tutoria.encuesta import CAMPOS, PREGUNTAS
 
-PAGINA = str(Path(__file__).resolve().parents[1] / "pages" / "5_Encuesta.py")
+PAGINA = str(Path(__file__).resolve().parents[2] / "legacy" / "streamlit" / "pages" / "5_Encuesta.py")
 
 
 def _responder(at):
