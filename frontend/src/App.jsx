@@ -12,10 +12,7 @@ const Admin = lazy(() => import('./pages/Admin.jsx'))
 function Marca() {
   return (
     <Link className="marca" to="/" aria-label="TutorIA, inicio">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M3 19 C7 19 8.5 5 12 5 S17 19 21 19" stroke="#d2b273" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="12" cy="5" r="2.2" fill="#ebe7de" />
-      </svg>
+      <img src="/tutoria-logo.svg" width="36" height="36" alt="" aria-hidden="true" style={{ display: 'block' }} />
       TutorIA <span className="etiqueta-mono">UANL</span>
     </Link>
   )

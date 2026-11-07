@@ -1,0 +1,5 @@
+/* Logo de TutorIA como avatar del chat */
+.chat-cab .avatar-logo { object-fit: contain; padding: 0; border: none; background: #0c0d10; }
+.msg-fila { align-self: flex-start; display: flex; align-items: flex-end; gap: 8px; max-width: 92%; }
+.msg-fila .msg.bot { max-width: none; }
+.avatar-msg { flex: none; width: 26px; height: 26px; border-radius: 50%; object-fit: contain; background: #0c0d10; }

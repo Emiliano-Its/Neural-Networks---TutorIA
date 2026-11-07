@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { api } from '../api.js'
 import { EASE } from '../movimiento.js'
+import './Chat.css'
 
 // Chat flotante. El backend (api/chat.py) decide la respuesta; hoy es por reglas,
 // mañana puede ser un LLM sin tocar este componente.
@@ -55,16 +56,18 @@ export default function Chat({ contexto, abierto: abiertoExt, setAbierto: setAbi
             transition={{ type: 'spring', stiffness: 380, damping: 30 }}>
             <div className="chat-cab">
               <div className="quien">
-                <span className="avatar"><IconoChat size={16} /></span>
+                <img className="avatar avatar-logo" src="/favicon.svg" alt="" aria-hidden="true" />
                 <div><b>TutorIA</b><small>Asistente de estudio</small></div>
               </div>
               <button className="icono-btn" aria-label="Cerrar el chat" onClick={() => setAbierto(false)}><X size={20} /></button>
             </div>
             <div className="chat-msgs" aria-live="polite">
               {mensajes.map((m) => (
-                <motion.div key={m.id} className={`msg ${m.de}`}
+                <motion.div key={m.id} className={m.de === 'bot' ? 'msg-fila' : `msg ${m.de}`}
                   initial={{ opacity: 0, x: m.de === 'yo' ? 16 : -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, ease: EASE }}>
-                  {m.texto}
+                  {m.de === 'bot'
+                    ? <><img className="avatar-msg" src="/favicon.svg" alt="" aria-hidden="true" /><div className="msg bot">{m.texto}</div></>
+                    : m.texto}
                 </motion.div>
               ))}
               <AnimatePresence>
