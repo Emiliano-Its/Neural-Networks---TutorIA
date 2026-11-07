@@ -143,13 +143,20 @@ def habitos(encuesta: dict) -> pd.DataFrame:
          "Dormir 7–9 h mejora la concentración y la memoria."),
         ("Regularidad del sueño", f"{e['B4']}/5", "≥ 4", e["B4"] >= 4,
          "Acuéstate y levántate a la misma hora."),
-        ("Trabajo", f"{e['B5']} h/sem", "≤ 15 h", e["B5"] <= 15,
-         "Más de 15 h de trabajo baja la nota; ajusta si puedes."),
-        ("Materias inscritas", f"{e['B6']}", "≤ 7", e["B6"] <= 7,
-         "Más de 7 materias reparte demasiado tu tiempo."),
+        ("Trabajo", f"{e['B5']:g} h/sem", "≤ 10 h", e["B5"] <= 10,
+         "Cada hora de trabajo arriba de 10 a la semana resta; ajusta tu horario si puedes."),
+        ("Materias inscritas", f"{e['B6']:g}", "≤ 9 (con laboratorios)", e["B6"] <= 9,
+         "Más de 9 materias contando laboratorios reparte demasiado tu tiempo."),
+        ("Carga total", f"{e['B5']:g} h de trabajo + {e['B6']:g} materias", "no ambas altas",
+         not (e["B5"] >= 20 and e["B6"] >= 8),
+         "Trabajar 20 h o más llevando 8 materias o más es la combinación que más baja la nota. "
+         "Considera dar de baja una materia o reducir horas de trabajo este semestre."),
         ("Asesorías", f"{e['B7']}/5", "≥ 3", e["B7"] >= 3,
          "Ve a asesorías: resolver dudas a tiempo evita rezagos."),
     ]
+    if e["B2"] < 0.75:  # faltar mucho pesa más que faltar poco
+        reglas[0] = (*reglas[0][:4], "Con menos de 75% de asistencia la nota esperada cae mucho; "
+                                     "es lo primero a corregir.")
     return pd.DataFrame([{"hábito": h, "tú": v, "meta": m, "estado": "✅" if ok else "⚠️",
                           "consejo": "" if ok else c} for h, v, m, ok, c in reglas])
 

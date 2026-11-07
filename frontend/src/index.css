@@ -435,3 +435,16 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .conv-form { display: flex; gap: 10px; padding: 14px 22px 20px; border-top: 1px solid var(--line); margin-top: 12px; }
 .conv-form .btn.grad { min-height: 46px; }
 @media (max-width: 600px) { .conversacion { height: calc(100dvh - 230px); } .conv-msgs, .rapidas { padding-left: 14px; padding-right: 14px; } .conv-form { padding: 12px 14px 14px; } .conversacion .msg { max-width: 90%; } }
+
+/* ---------- confiabilidad del test ---------- */
+.confiabilidad { display: flex; gap: 18px; align-items: center; }
+.conf-indice { flex: none; display: grid; place-items: center; width: 92px; height: 92px; border-radius: 50%; border: 1px solid currentColor; text-align: center; line-height: 1.1; }
+.conf-indice .num { font-size: 22px; color: var(--fg); }
+.conf-indice span:last-child { font: 11px var(--font-mono); letter-spacing: .08em; }
+.conf-alta { color: var(--bajo); } .conf-media { color: var(--medio); } .conf-baja { color: var(--alto); }
+.confiabilidad p { margin: 0; }
+.marcas { list-style: none; padding: 0; margin: 14px 0 0; }
+.marcas li { display: flex; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.marcas li > .num { flex: none; width: 34px; color: var(--accent); font-size: 12px; padding-top: 2px; }
+.lista-admin { margin: 0 0 12px; padding-left: 18px; color: #c9c5bc; }
+.lista-admin li { margin-bottom: 6px; }

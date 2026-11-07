@@ -1,4 +1,4 @@
-import { BookOpenText, Brain, CircleAlert, CircleCheck, Cpu, Database, Gauge, KeyRound, LogOut, Map as MapaIcono, RefreshCw, RotateCcw, Save, SlidersHorizontal, Target, Workflow } from 'lucide-react'
+import { BookOpenText, Brain, Timer, CircleAlert, CircleCheck, Cpu, Database, Gauge, KeyRound, LogOut, Map as MapaIcono, RefreshCw, RotateCcw, Save, SlidersHorizontal, Target, Workflow } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useCallback, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -11,7 +11,7 @@ const leer = () => { try { return sessionStorage.getItem('admin_pw') ?? '' } cat
 const escribir = (v) => { try { if (v) sessionStorage.setItem('admin_pw', v); else sessionStorage.removeItem('admin_pw') } catch { /* sin storage */ } }
 
 // Ícono por grupo de variables (api/config.py → Variable.grupo). Grupos nuevos usan SlidersHorizontal.
-const ICONO_GRUPO = { Simulador: Database, 'Ensamble de MLP': Brain, 'Mapa autoorganizado (SOM)': MapaIcono, 'Umbrales de riesgo': Target }
+const ICONO_GRUPO = { Simulador: Database, 'Ensamble de MLP': Brain, 'Mapa autoorganizado (SOM)': MapaIcono, 'Umbrales de riesgo': Target, 'Integridad del test': Timer }
 
 export default function Admin() {
   const [pw, setPw] = useState(leer)
@@ -151,6 +151,16 @@ function Sistema({ info }) {
             </table>
           </div>
         </div>
+      </Seccion>
+
+      <Seccion icono={Timer} titulo="Integridad del test: tiempo por pregunta">
+        <p>Se relaciona con la idea original del proyecto: detectar copia en exámenes en línea. Cada pregunta del test tiene un tiempo esperado según su dificultad TRI: unos {h.integ_tiempo_base_s} s para una pregunta media, menos para una fácil y más para una difícil. El cronómetro no cuenta el tiempo con la pestaña oculta.</p>
+        <ul className="lista-admin">
+          <li><b>Correcta muy rápida</b> (menos de {Math.round(h.integ_frac_rapida * 100)}% del tiempo esperado, o de {h.integ_min_s} s): pudo copiarse o resolverse con IA. Cuenta con peso {h.integ_peso} al estimar θ.</li>
+          <li><b>Incorrecta muy rápida</b>: probablemente sin leer. Ya cuenta como error; solo baja el índice de confiabilidad.</li>
+          <li><b>Muy lenta</b> (más de {h.integ_lenta_min} min): si es fácil y correcta, pudo consultarse; también cuenta con peso {h.integ_peso}.</li>
+        </ul>
+        <p>θ se estima con EAP ponderado: posterior ∝ prior · Π L<sup>peso</sup>. Una respuesta sospechosa no se descarta; solo aporta menos evidencia. El tiempo promedio que entra al modelo usa el tiempo esperado en las respuestas muy rápidas y se acota a 30–70 s, el rango con el que se entrenó. Si no se hiciera así, contestar al azar muy rápido haría creer al modelo que el alumno es muy hábil (en el simulador, más rápido = más hábil). Al alumno se le muestra un índice de confiabilidad (alta ≥ 85 %, media ≥ 60 %) con las preguntas marcadas, en tono neutral. Los umbrales se ajustan en Variables → Integridad del test, sin reentrenar.</p>
       </Seccion>
 
       <div className="dos pila">

@@ -51,7 +51,7 @@ CLAVES_HABILIDADES = [h[0] for h in HABILIDADES]
 
 CORTE_ALTO, CORTE_BAJO = 70.0, 80.0
 BASE_NOTA = 75.5  # base de la nota de Mate II (original 72.5; ver docs)
-COEF_Z = 9.0     # peso de z en la nota (original 6.5; ver docs)
+COEF_Z = 8.8     # peso de z en la nota (original 6.5, luego 9.0; 8.8 al reforzar hábitos, ver docs)
 NIVELES_RIESGO = ["bajo", "medio", "alto"]  # códigos 0, 1, 2
 
 # Parámetros de la encuesta (puntos de partida de la especificación; se
@@ -61,9 +61,13 @@ PARAMS_ENCUESTA = {
     "b2_media": 0.845, "b2_c": 0.07, "b2_ruido": 0.065,
     "b3_media": 6.6, "b3_trabajo": -0.03, "b3_ruido": 1.05,
     "b4_base": 3.0, "b4_c": 0.7, "b4_ruido": 0.9,
-    "b5_prob": 0.45, "b5_min": 8, "b5_max": 30,
-    "b6_valores": (5, 6, 7, 8), "b6_probs": (0.05, 0.47, 0.42, 0.06),
-    "b7_base": 2.3, "b7_c": 0.4, "b7_q": -0.6, "b7_ruido": 0.8,
+    "b5_prob": 0.45, "b5_min": 8, "b5_max": 40,
+    # materias inscritas: los laboratorios cuentan aparte, así que hay semestres de 12–15
+    "b6_valores": (5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+    "b6_probs": (0.03, 0.25, 0.27, 0.15, 0.08, 0.08, 0.05, 0.04, 0.02, 0.02, 0.01),
+    # una minoría falta mucho (para que el modelo vea asistencias bajas)
+    "b2_prob_baja": 0.06, "b2_baja_min": 0.35, "b2_baja_max": 0.75,
+    "b7_base": 2.3, "b7_c": 0.4, "b7_q": -0.3, "b7_ruido": 0.8,
     "c1_base": 3.2, "c1_A": 0.8, "c1_ruido": 0.8,
     "c2_media": 82.0, "c2_c1": 3.0, "c2_ruido": 5.0,
     "c3_base": 3.2, "c3_c": 0.8, "c3_ruido": 0.6,
@@ -157,14 +161,20 @@ class Simulacion:
 
 
 def efecto_habitos(B1, B2, B3, B4, B5, B6, B7) -> np.ndarray:
-    """E_hábitos sin centrar."""
+    """E_hábitos sin centrar. Todas las relaciones son monótonas: menos asistencia, más
+    trabajo, más materias o peor sueño nunca suben la nota."""
+    B2, B5, B6 = np.asarray(B2), np.asarray(B5), np.asarray(B6)
     estudio = 3 * np.log1p(np.asarray(B1) / 4)
-    asistencia = 10 * (np.asarray(B2) - 0.85)
+    # lineal y, debajo de 75 %, castigo extra (faltar mucho pesa más que faltar poco)
+    asistencia = 10 * (B2 - 0.85) - 15 * np.maximum(0.75 - B2, 0)
     sueno = np.maximum(-0.5 * (np.asarray(B3) - 7.5) ** 2, -4) + 0.6 * (np.asarray(B4) - 3)
-    trabajo = -0.15 * np.maximum(np.asarray(B5) - 15, 0)
-    carga = -1.0 * np.maximum(np.asarray(B6) - 7, 0)
-    asesorias = 0.5 * (np.asarray(B7) - 1)
-    return estudio + asistencia + sueno + trabajo + carga + asesorias
+    trabajo = -0.2 * np.maximum(B5 - 10, 0)
+    # hasta 9 materias es normal contando laboratorios
+    carga = -0.6 * np.maximum(B6 - 9, 0)
+    # trabajar mucho Y llevar muchas materias se suma: sobrecarga
+    sobrecarga = -0.04 * np.maximum(B5 - 10, 0) * np.maximum(B6 - 6, 0)
+    asesorias = 0.6 * (np.asarray(B7) - 1)
+    return estudio + asistencia + sueno + trabajo + carga + sobrecarga + asesorias
 
 
 def simular(semilla: int = SEMILLA, n: int = N_PRIMER_SEMESTRE,
@@ -193,6 +203,8 @@ def simular(semilla: int = SEMILLA, n: int = N_PRIMER_SEMESTRE,
     # --- encuesta
     B1 = np.clip(P["b1_media"] + P["b1_c"] * c + P["b1_ruido"] * rng.standard_normal(n), 0, 40)
     B2 = np.clip(P["b2_media"] + P["b2_c"] * c + P["b2_ruido"] * rng.standard_normal(n), 0.30, 1)
+    falta_mucho = rng.random(n) < P["b2_prob_baja"]
+    B2 = np.where(falta_mucho, rng.uniform(P["b2_baja_min"], P["b2_baja_max"], n), B2)
     trabaja = rng.random(n) < P["b5_prob"]
     B5 = np.where(trabaja, rng.integers(P["b5_min"], P["b5_max"] + 1, n), 0).astype(float)
     B3 = np.clip(P["b3_media"] + P["b3_trabajo"] * (B5 - B5.mean())

@@ -122,7 +122,7 @@ def _validar_encuesta(encuesta: dict) -> dict:
             lo, hi = _NUMERICAS[clave]["min"], _NUMERICAS[clave]["max"]
         if not lo <= v <= hi:
             raise ValueError(f"La respuesta {clave} está fuera de rango ({lo:g}–{hi:g}).")
-        out[clave] = v
+        out[clave] = int(v) if v.is_integer() else v  # «3/5», no «3.0/5»
     return out
 
 

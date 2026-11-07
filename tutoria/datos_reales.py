@@ -29,7 +29,7 @@ PUEDEN_IR_VACIAS = {"D1"}
 RANGOS = {**{f"cal_{m}": (0, 100, False) for m in CLAVES_MATERIAS},
           "A2": (0, 7, True), "B1": (0, 40, False), "B2": (0, 1, False),
           "B3": (0, 14, False), "B4": (1, 5, True), "B5": (0, 60, False),
-          "B6": (1, 10, True), "B7": (1, 5, True), "C1": (1, 5, True),
+          "B6": (1, 15, True), "B7": (1, 5, True), "C1": (1, 5, True),
           "C2": (0, 100, False), "C3": (1, 5, True), "D1": (1, 5, True),
           **{f"dominio_{h}": (0, 1, False) for h in CLAVES_HABILIDADES},
           "tiempo_promedio": (0, 600, False), "nota": (0, 100, False)}

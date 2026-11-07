@@ -24,12 +24,23 @@ export default function Usuario() {
   const [actual, setActual] = useState(null) // pregunta actual del test
   const [resultado, setResultado] = useState(null)
   const [evaluando, setEvaluando] = useState(false)
-  const t0 = useRef(0)
+  // cronómetro por pregunta: no cuenta el tiempo con la pestaña oculta (visibilitychange)
+  const crono = useRef({ inicio: 0, acumulado: 0 })
   const pend = pendiente(s)
 
   useEffect(() => {
     esperarApi(setAviso).then(() => api.materias()).then((m) => { setAviso(''); setMaterias(m) })
       .catch((e) => setError(e.message))
+  }, [])
+
+  useEffect(() => {
+    const cambio = () => {
+      const c = crono.current
+      if (document.hidden) { if (c.inicio) { c.acumulado += Date.now() - c.inicio; c.inicio = 0 } }
+      else if (!c.inicio) c.inicio = Date.now()
+    }
+    document.addEventListener('visibilitychange', cambio)
+    return () => document.removeEventListener('visibilitychange', cambio)
   }, [])
 
   const actualizar = useCallback((cambios) => setS((x) => ({ ...x, ...cambios })), [])
@@ -58,7 +69,7 @@ export default function Usuario() {
           .catch((e) => setError(e.message))
           .finally(() => setEvaluando(false))
       } else {
-        setActual(q); t0.current = Date.now()
+        setActual(q); crono.current = { inicio: document.hidden ? 0 : Date.now(), acumulado: 0 }
       }
     }).catch((e) => setError(e.message))
     return () => { vivo = false }
@@ -66,7 +77,8 @@ export default function Usuario() {
 
   const responderTest = useCallback((opcion) => {
     if (!actual) return
-    const segundos = Math.round((Date.now() - t0.current) / 100) / 10
+    const c = crono.current
+    const segundos = Math.round((c.acumulado + (c.inicio ? Date.now() - c.inicio : 0)) / 100) / 10
     setS((x) => ({ ...x, respuestas: [...x.respuestas, { h: actual.h, b: actual.b, opcion, segundos }] }))
   }, [actual])
 

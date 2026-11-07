@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, CircleCheck, Clock, LifeBuoy, Lightbulb, Map as MapaIcono, RotateCcw, TrendingUp, TriangleAlert, ShieldCheck, ShieldAlert, Shield } from 'lucide-react'
+import { BookOpen, CalendarDays, Timer, CircleCheck, Clock, LifeBuoy, Lightbulb, Map as MapaIcono, RotateCcw, TrendingUp, TriangleAlert, ShieldCheck, ShieldAlert, Shield } from 'lucide-react'
 import { animate, motion, useInView, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { alVer, EASE, presion } from '../movimiento.js'
@@ -101,6 +101,8 @@ export default function Resultado({ r, onRepetir }) {
           )}
         </Tarjeta>
       </div>
+
+      {r.integridad && <Confiabilidad integ={r.integridad} />}
 
       <motion.section className="tarjeta cta" {...alVer}>
         <div>
@@ -236,5 +238,36 @@ function MapaSom({ mapa, neurona }) {
       </div>
       <p className="tenue peq">Cada celda es una neurona del mapa. Más dorada = nota media más alta. Tu celda tiene el borde claro.</p>
     </div>
+  )
+}
+
+// Índice de confiabilidad del test según el tiempo por pregunta (api/integridad.py). Tono neutral.
+function Confiabilidad({ integ }) {
+  const texto = {
+    alta: 'Tus tiempos de respuesta fueron habituales, así que el test refleja bien lo que sabes.',
+    media: 'Algunas respuestas tuvieron tiempos poco habituales. Pesaron menos al estimar tu dominio de cada tema.',
+    baja: 'Muchas respuestas tuvieron tiempos poco habituales. Pesaron menos al estimar tu dominio, así que toma el resultado con cautela; si quieres, vuelve a hacer el test con calma.',
+  }[integ.nivel]
+  return (
+    <Tarjeta icono={Timer} titulo="Confiabilidad del test">
+      <div className="confiabilidad">
+        <div className={`conf-indice conf-${integ.nivel}`}>
+          <span className="num">{Math.round(integ.indice * 100)}%</span>
+          <span>{integ.nivel}</span>
+        </div>
+        <p className="tenue">{texto}</p>
+      </div>
+      {integ.marcas.length > 0 && (
+        <ul className="marcas">
+          {integ.marcas.map((m) => (
+            <li key={m.pregunta}>
+              <span className="num">P{m.pregunta}</span>
+              <div><b>{m.habilidad}</b> <span className="tenue">({m.nivel})</span><div className="tenue peq">{m.motivo}</div></div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="tenue peq" style={{ marginTop: 10 }}>Se mide el tiempo de cada pregunta (sin contar cuando cambias de pestaña) y se compara con lo habitual para su dificultad. Un tiempo poco habitual no significa que hayas hecho algo mal.</p>
+    </Tarjeta>
   )
 }

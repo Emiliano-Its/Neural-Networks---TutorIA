@@ -68,3 +68,19 @@ Aplicados en un commit aparte para poder revertirlos.
 2. μ de Competencia comunicativa: 85 → 84. Con 85 la reprobación esperada era 4.8%, abajo de la meta de 5–15%.
 3. Meta de orden: antes pedía que Competencia comunicativa fuera la de menor correlación. Ahora pide que TI y Competencia comunicativa sean las dos de menor correlación, en cualquier orden, porque ambas tienen peso 0 en G y su orden depende del ruido.
 4. Dispersión de la nota (segundo ajuste): el coeficiente de z sube de 6.5 a 9.0 y la base de 74.5 a 75.5. Con 6.5 la desviación de la nota era ~8.9, así que la franja de 70 a 80 siempre juntaba ~43% y bajo y medio no podían quedar parecidos con el alto en 30–35%. La idea era llevar la desviación a ~12, igual que la dispersión de Matemáticas I y Álgebra de 1er semestre (σ de 12 a 13). Pero con un coeficiente de 10.5 (desviación ~12.1) el techo de exactitud con la nota sin ruido llegaba a ~77%, arriba de la meta de 70–75%. Por eso el coeficiente se bajó a 9.0 (desviación ~10.9), el valor más alto con el que el techo queda en rango (74.1%). Luego se reajustó la base a 75.5 para que el riesgo alto quede en 30–35% y bajo y medio parecidos. Ninguna meta se aflojó.
+
+## Cambios del 2026-11-07 (resultados poco creíbles en pruebas)
+
+Una prueba con test al azar, 50% de asistencia, 35 h de trabajo, 8 materias y sin asesorías daba calificación esperada de ~82. Diagnóstico: el mapeo de entradas estaba bien. Lo que fallaba: el simulador solo generaba hasta 30 h de trabajo y de 5 a 8 materias, y el efecto del trabajo era débil (empezaba en 15 h), así que el modelo extrapolaba (35 h de trabajo *subía* la nota +1). Además, el tiempo promedio es una entrada del modelo y en el simulador «más rápido = más hábil», así que contestar al azar muy rápido subía la nota.
+
+5. Hábitos (`efecto_habitos`), todos monótonos:
+   - asistencia: `10·(B2 − 0.85) − 15·max(0.75 − B2, 0)` (castigo extra debajo de 75%);
+   - trabajo: `−0.2·max(B5 − 10, 0)` (antes `−0.15·max(B5 − 15, 0)`);
+   - materias inscritas: `−0.6·max(B6 − 9, 0)` (antes `−1·max(B6 − 7, 0)`; los laboratorios cuentan como materias);
+   - sobrecarga nueva: `−0.04·max(B5 − 10, 0)·max(B6 − 6, 0)`;
+   - asesorías: `0.6·(B7 − 1)` (antes 0.5) y su confusión con q baja de −0.6 a −0.3.
+6. Rangos: B5 hasta 40 h; B6 de 5 a 15 (probabilidades 0.03, 0.25, 0.27, 0.15, 0.08, 0.08, 0.05, 0.04, 0.02, 0.02, 0.01); 6% de los alumnos con asistencia baja (uniforme 35–75%) para que el modelo vea esos casos.
+7. COEF_Z de 9.0 a 8.8: con hábitos más fuertes el techo de exactitud subía a 75.1%. Con 8.8 queda en 74.6% y se cumplen las 16 metas.
+8. El peso del test en z (0.40·D) se probó en 0.50 y apenas cambiaba el caso de prueba, así que se dejó como estaba.
+
+En la API (`api/integridad.py`): las respuestas correctas demasiado rápidas para su dificultad (o fáciles y de más de 20 min) pesan 0.25 en θ, y el tiempo promedio que entra al modelo usa el tiempo esperado en las respuestas muy rápidas y se acota a 30–70 s.

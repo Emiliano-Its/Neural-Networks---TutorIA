@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api.js'
 import { EASE } from '../../movimiento.js'
+import '../Chat.css'
 import { ORDINAL } from './estado.js'
 
 // Modo conversación: TutorIA hace las mismas preguntas que el formulario, una por mensaje.
@@ -78,7 +79,8 @@ function resumenRespondido(s) {
 export default function ModoConversacion({ s, pend, materias, actual, actualizar, elegirMateria, responderTest }) {
   const [mensajes, setMensajes] = useState([])
   const [texto, setTexto] = useState('')
-  const [escribiendo, setEscribiendo] = useState(false)
+  const [escribiendo, setEscribiendo] = useState(false) // TutorIA "escribe" la siguiente pregunta
+  const [enviando, setEnviando] = useState(false) // esperando a que el backend interprete
   const [parcial, setParcial] = useState(null)
   const preguntado = useRef(null)
   const fin = useRef(null)
@@ -115,10 +117,11 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
 
   async function enviar(t) {
     const msg = String(t).trim()
-    if (!msg || !q || escribiendo) return
+    // no se bloquea mientras TutorIA "escribe": si el alumno contesta rápido, su mensaje no se pierde
+    if (!msg || !q || enviando) return
     decir('yo', msg)
     setTexto('')
-    setEscribiendo(true)
+    setEnviando(true)
     try {
       // adjuntos: aquí se podrán mandar imágenes en el futuro (api.interpretar(..., adjuntos))
       const r = await api.interpretar(q.paso, msg, parcial)
@@ -126,7 +129,7 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
         setParcial(r.parcial ?? null)
         await new Promise((ok) => setTimeout(ok, 300))
         decir('bot', r.mensaje)
-        setEscribiendo(false)
+        setEnviando(false)
         return
       }
       setParcial(null)
@@ -136,10 +139,10 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
         if (r.valor.oportunidad !== 1) decir('bot', `Anotado: ${r.valor.cal} (${ORDINAL[r.valor.oportunidad]}${r.valor.oportunidad ? ' oportunidad' : ''}).`)
       } else if (pend.tipo === 'encuesta') actualizar({ encuesta: { ...s.encuesta, [pend.pregunta.clave]: r.valor } })
       else if (pend.tipo === 'test') responderTest(r.valor)
-      setEscribiendo(false)
+      setEnviando(false)
     } catch (e) {
       decir('bot', e.message)
-      setEscribiendo(false)
+      setEnviando(false)
     }
   }
 
@@ -150,15 +153,23 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
     <section className="tarjeta conversacion" aria-label="Conversación con TutorIA">
       <div className="conv-msgs" aria-live="polite">
         {mensajes.map((m) => (
-          <motion.div key={m.id} className={`msg ${m.de} ${typeof m.contenido === 'object' ? 'msg-mate' : ''}`}
+          <motion.div key={m.id} className={m.de === 'bot' ? 'msg-fila' : 'msg yo'}
             initial={{ opacity: 0, x: m.de === 'yo' ? 16 : -16, filter: 'blur(4px)' }} animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }} transition={{ duration: 0.35, ease: EASE }}>
-            {typeof m.contenido === 'object'
-              ? <><span className="paso-meta">{m.contenido.meta}</span><span className="mate">{m.contenido.mate}</span></>
-              : m.contenido}
+            {m.de === 'bot' ? (
+              <>
+                {/* mismo avatar que el chat de la portada (Chat.css) */}
+                <img className="avatar-msg" src="/favicon.svg" alt="" aria-hidden="true" />
+                <div className={`msg bot ${typeof m.contenido === 'object' ? 'msg-mate' : ''}`}>
+                  {typeof m.contenido === 'object'
+                    ? <><span className="paso-meta">{m.contenido.meta}</span><span className="mate">{m.contenido.mate}</span></>
+                    : m.contenido}
+                </div>
+              </>
+            ) : m.contenido}
           </motion.div>
         ))}
         <AnimatePresence>
-          {escribiendo && (
+          {(escribiendo || enviando) && (
             <motion.div className="msg bot escribiendo" aria-label="TutorIA está escribiendo" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <span /><span /><span />
             </motion.div>
@@ -167,7 +178,7 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
         <div ref={fin} />
       </div>
       <AnimatePresence mode="wait">
-        {!escribiendo && rapidas.length > 0 && (
+        {!escribiendo && !enviando && rapidas.length > 0 && (
           <motion.div key={clave + (parcial ? 'p' : '')} className={`rapidas ${pend.tipo === 'test' ? 'rapidas-test' : ''}`}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: 0.12 } }}>
             {rapidas.map((r) => <button key={r.etiqueta} type="button" onClick={() => enviar(r.texto)}>{r.etiqueta}</button>)}
@@ -179,7 +190,7 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
             y los archivos se mandarían como `adjuntos` a /api/conversacion/interpretar. */}
         <input ref={entrada} type="text" value={texto} onChange={(e) => setTexto(e.target.value)}
           placeholder={pend.tipo === 'test' ? 'Escribe la letra (a, b, c, d) o toca una opción' : 'Escribe tu respuesta'} aria-label="Tu respuesta" disabled={!q} />
-        <button className="btn grad" aria-label="Enviar" disabled={!texto.trim() || escribiendo || !q}>Enviar <Send size={16} aria-hidden /></button>
+        <button className="btn grad" aria-label="Enviar" disabled={!texto.trim() || enviando || !q}>Enviar <Send size={16} aria-hidden /></button>
       </form>
     </section>
   )

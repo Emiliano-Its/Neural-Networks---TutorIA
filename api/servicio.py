@@ -16,7 +16,7 @@ from tutoria.experimento import (Datos, ensamble_nota, ensamble_riesgo, evaluar_
 from tutoria.simulador import ENTRADAS, ENTRADAS_SOM, MATERIAS, NIVELES_RIESGO, simular
 from tutoria.som import SOM
 
-from . import config
+from . import config, integridad
 
 
 # ---------------------------------------------------------------- modelos
@@ -144,7 +144,7 @@ _NUMERICAS = {
     "B2": dict(min=30, max=100, paso=5, defecto=85, unidad="%"),
     "B3": dict(min=3, max=12, paso=0.5, defecto=7, unidad="h"),
     "B5": dict(min=0, max=60, paso=1, defecto=0, unidad="h/semana"),
-    "B6": dict(min=5, max=8, paso=1, defecto=7),
+    "B6": dict(min=1, max=15, paso=1, defecto=7),  # los laboratorios cuentan como materias
     "C2": dict(min=70, max=100, paso=1, defecto=85),
 }
 _SECCIONES = {"A1": "Antecedentes", "A2": "Antecedentes", "B1": "Hábitos", "B2": "Hábitos",
@@ -233,12 +233,16 @@ def resultado_test(semilla: int, respuestas: list[dict]) -> dict:
     _validar_camino(cal, semilla)
     if len(cal) != tri.N_PREGUNTAS:
         raise ValueError(f"El test tiene {tri.N_PREGUNTAS} preguntas; llegaron {len(cal)}.")
-    dominio, theta, sd = tri.estimar([(r["h"], r["b"], r["r"]) for r in cal])
     habs = BANCO.habilidades
+    # tiempo por pregunta: las respuestas sospechosas pesan menos en θ (api/integridad.py)
+    cfg = config.cargar()
+    integ = integridad.analizar(cal, cfg, BANCO.nivel_por_b, [h.nombre for h in habs])
+    dominio, theta, sd = integridad.estimar_ponderado(cal, integ["pesos"])
     return {
         "dominios": {f"dominio_{h.clave}": float(round(x, 3)) for h, x in zip(habs, dominio)},
         "theta": theta.tolist(), "incertidumbre": sd.tolist(),
-        "tiempo_promedio": float(np.mean([r.get("segundos", 30.0) for r in cal])),
+        "tiempo_promedio": integridad.tiempo_promedio_modelo(cal, cfg),
+        "integridad": {k: integ[k] for k in ("indice", "nivel", "marcas")},
         "errores": [{"habilidad": habs[r["h"]].nombre, "clave": habs[r["h"]].clave,
                      "nivel": BANCO.nivel_por_b[r["b"]], "pregunta": r["texto"],
                      "respuesta": r["opcion"], "error": r["error"]}
@@ -289,6 +293,7 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str =
         "plan_semanal": plan.to_dict("records"),
         "habitos": hab.to_dict("records"),
         "test": {k: test[k] for k in ("dominios", "tiempo_promedio", "errores", "aciertos")},
+        "integridad": test["integridad"],
         "umbrales": {"bajo": cfg["corte_bajo"], "alto": cfg["corte_alto"]},
         "materia": materia,
     }
@@ -318,6 +323,10 @@ def explicar(r: dict) -> list[str]:
         out.append(f"Te recomendamos estudiar {h['recomendadas']} h por semana (hoy {h['actuales']:g} h).")
     top = [t["tema"] for t in r["temas"][:2]]
     out.append(f"Temas a reforzar primero: {' y '.join(top)}.")
+    integ = r.get("integridad")
+    if integ and integ["nivel"] != "alta":
+        out.append(f"La confiabilidad del test es {integ['nivel']} ({integ['indice']:.0%}): "
+                   f"{len(integ['marcas'])} respuestas tuvieron tiempos poco habituales y pesaron menos en el cálculo.")
     out.append(f"Tu perfil se parece al grupo «{r['cluster']['nombre']}» del mapa autoorganizado.")
     return out
 
