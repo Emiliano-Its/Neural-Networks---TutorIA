@@ -7,3 +7,7 @@ __pycache__/
 .DS_Store
 
 data/uci697/
+
+# frontend
+frontend/node_modules/
+frontend/dist/

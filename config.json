@@ -1,0 +1,21 @@
+{
+  "semilla": 42,
+  "n_estudiantes": 3600,
+  "n_modelos": 5,
+  "capas_ocultas": [
+    32,
+    16
+  ],
+  "activacion": "relu",
+  "epocas": 150,
+  "tasa_riesgo": 0.01,
+  "tasa_nota": 0.005,
+  "lote": 32,
+  "l2": 0.001,
+  "som_filas": 10,
+  "som_columnas": 10,
+  "som_tasa": 0.5,
+  "som_epocas": 20,
+  "corte_bajo": 80.0,
+  "corte_alto": 70.0
+}
