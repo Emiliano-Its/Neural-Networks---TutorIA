@@ -81,3 +81,53 @@ def test_respuestas_sospechosas_pesan_menos():
     dom_a = integridad.estimar_ponderado(resp, a["pesos"])[0]
     dom_b = integridad.estimar_ponderado(rapidas, b["pesos"])[0]
     assert (dom_b < dom_a).all()
+
+
+def test_tiempo_al_azar_no_ayuda():
+    """Contestar mal en 2 s no puede dar mejor tiempo (para el modelo) que fallar con calma,
+    y una respuesta de 25 min no cuenta como lentitud además de pesar menos en θ."""
+    cfg = config.defectos()
+    calma = [{"h": h % 7, "b": 0.0, "r": 0, "segundos": 55} for h in range(15)]
+    azar = [{**x, "segundos": 2} for x in calma]
+    assert integridad.tiempo_promedio_modelo(azar, cfg) >= integridad.tiempo_promedio_modelo(calma, cfg)
+    lentas = [{**x, "r": 1, "segundos": 25 * 60} for x in calma]
+    esperado = integridad.tiempo_esperado(0.0, cfg)
+    assert abs(integridad.tiempo_promedio_modelo(lentas, cfg) - esperado) < 1
+
+
+def test_conversacion_entiende_frases_comunes():
+    cal = {"tipo": "calificacion", "materia": {"clave": "cal_algebra", "nombre": "Álgebra"}}
+    assert flujo.interpretar({"tipo": "materia"}, "mate dos")["valor"] == "mate2"
+    assert flujo.interpretar(cal, "noventa en primera")["valor"] == {"cal": 90, "oportunidad": 1}
+    assert flujo.interpretar(cal, "la reprobé una vez y luego saqué 80")["valor"] == {"cal": 80, "oportunidad": 2}
+    assert flujo.interpretar(cal, "la reprobé 2 veces, ahora 75")["valor"] == {"cal": 75, "oportunidad": 3}
+    assert flujo.interpretar(cal, "saqué un 85 en primera")["valor"] == {"cal": 85, "oportunidad": 1}
+    p = {c["clave"]: c for c in flujo.preguntas("mate2")["encuesta"]}
+    assert flujo.interpretar(p["B3"], "duermo 6 y media")["valor"] == 6.5
+    assert flujo.interpretar(p["B5"], "tengo 8 materias")["ok"] is False  # es de otra pregunta
+    assert flujo.interpretar(p["B5"], "no trabajo")["valor"] == 0
+
+
+def test_opcion_numerica_no_se_confunde_con_su_posicion():
+    paso = {"tipo": "opcion_test", "opciones": ["0", "3", "∞", "−1/5"]}
+    assert flujo.interpretar(paso, "3")["valor"] == "3"          # el texto de la b), no la c)
+    assert flujo.interpretar(paso, "c")["valor"] == "∞"
+    assert flujo.interpretar(paso, "creo que es la d")["valor"] == "−1/5"
+
+
+def test_oportunidad_tardia_cuenta_menos():
+    pen = config.defectos()["penal_oportunidad"]
+    ef = lambda c, o: flujo.calificacion_efectiva(c, o, pen)  # noqa: E731
+    assert ef(100, 3) < ef(80, 1)                 # pasar con 100 en 3ª cuenta menos que 80 en 1ª
+    assert ef(70, 6) < ef(70, 2) < ef(70, 1) == 70
+    assert ef(60, 0) == 60                        # no acreditada: se queda igual
+    enc = {"B1": 8, "B2": 0.85, "B3": 7, "B4": 3, "B5": 0, "B6": 7, "B7": 3, "C1": 3, "C2": 85, "C3": 3, "D1": None}
+    m = flujo.materia("mate2")["relevantes"]
+    e = flujo.encuesta_modelo("mate2", {r["clave"]: {"cal": 100, "oportunidad": 3} for r in m}, enc)
+    assert e["cal_mate1"] == ef(100, 3) and e["A2"] == len(m)
+
+
+def test_nivel_de_riesgo_no_contradice_la_nota():
+    # la red dice «medio» pero la nota esperada es 47: el nivel mostrado debe ser alto
+    p = servicio.riesgo_combinado([0.0, 0.7, 0.3], 47.0, 5.0, (80.0, 70.0))
+    assert abs(p.sum() - 1) < 1e-9 and p.argmax() == 2

@@ -76,8 +76,8 @@ function resumenRespondido(s) {
   return n
 }
 
-export default function ModoConversacion({ s, pend, materias, actual, actualizar, elegirMateria, responderTest }) {
-  const [mensajes, setMensajes] = useState([])
+// mensajes/setMensajes vienen de Usuario para que el historial no se pierda al ir al formulario y volver
+export default function ModoConversacion({ s, pend, materias, actual, actualizar, elegirMateria, responderTest, mensajes, setMensajes }) {
   const [texto, setTexto] = useState('')
   const [escribiendo, setEscribiendo] = useState(false) // TutorIA "escribe" la siguiente pregunta
   const [enviando, setEnviando] = useState(false) // esperando a que el backend interprete
@@ -85,16 +85,19 @@ export default function ModoConversacion({ s, pend, materias, actual, actualizar
   const preguntado = useRef(null)
   const fin = useRef(null)
   const entrada = useRef(null)
-  const id = useRef(0)
+  const saludado = useRef(false)
+  const habiaHistorial = useRef(mensajes.length > 0)
   const clave = claveVisible(pend, actual)
   const q = clave ? preguntaDe(pend, s, materias, actual) : null
 
-  const decir = (de, contenido) => { const nid = ++id.current; setMensajes((m) => [...m, { id: nid, de, contenido }]) }
+  const decir = (de, contenido) => setMensajes((m) => [...m, { id: (m.at(-1)?.id ?? 0) + 1, de, contenido }])
 
   // saludo inicial (si viene del formulario, retoma donde se quedó)
   useEffect(() => {
-    if (id.current > 0) return
-    decir('bot', resumenRespondido(s) > 0
+    if (saludado.current) return
+    saludado.current = true
+    if (habiaHistorial.current) decir('bot', 'Seguimos donde te quedaste.')
+    else decir('bot', resumenRespondido(s) > 0
       ? 'Sigamos donde te quedaste: ya tengo lo que contestaste en el formulario.'
       : 'Hola, soy TutorIA. Te haré las mismas preguntas que el formulario, una por una. Escribe como quieras o toca una respuesta rápida.')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

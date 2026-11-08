@@ -48,7 +48,12 @@ def test_factores_sin_d1_y_mejoran(modelos):
 def test_horas_recomendadas():
     h = np.arange(0, 21)
     assert panel.horas_recomendadas(h, 70 + h) == 10           # llega a 80 con 10 h
-    assert panel.horas_recomendadas(h, 60 + 0.6 * h) == 17     # no llega a 80; a 70 con 17 h
+    assert panel.horas_recomendadas(h, 60 + 0.6 * h) == 20     # no llega a 80 y cada hora suma 0.6: todo el rango
+    curva = 66 + 0.8 * h - 0.02 * h ** 2                        # aprueba con 6 h; después rinde menos
+    assert panel.horas_recomendadas(h, curva) == 14            # el codo (ganancia < 0.25), no las 6 h de llegar a 70
+    medio = 72 + 7.4 * (1 - np.exp(-h / 8))                     # riesgo medio: ya aprueba con 0 h y no llega a 80
+    r = panel.horas_recomendadas(h, medio)
+    assert r > 0 and (np.diff(medio)[r:] < 0.25).all()          # antes daba 0 h
     curva = 60 + 3 * np.log1p(h / 4)                            # no llega a 70: rendimientos decrecientes
     r = panel.horas_recomendadas(h, curva)
     assert 0 < r < 20 and (np.diff(curva)[r:] < 0.25).all()

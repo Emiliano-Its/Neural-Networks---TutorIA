@@ -272,12 +272,15 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str =
     plan = panel.plan_semanal(tem, max(actual, rec))
     hab = panel.habitos(encuesta)
     perfil = panel.perfil_som(M.som, M.som_media, M.som_desv, x, M.som_stats)
-    nivel = pred["nombre_nivel"]
+    proba = riesgo_combinado(pred["proba"], pred["nota"], mae, metas)
+    codigo = int(proba.argmax())
+    nivel = NIVELES_RIESGO[codigo]
 
     res = {
-        "riesgo": {"nivel": nivel, "codigo": pred["nivel"],
-                   "probabilidad": float(pred["proba"][pred["nivel"]]),
-                   "probabilidades": dict(zip(NIVELES_RIESGO, map(float, pred["proba"])))},
+        "riesgo": {"nivel": nivel, "codigo": codigo,
+                   "probabilidad": float(proba[codigo]),
+                   "probabilidades": dict(zip(NIVELES_RIESGO, map(float, proba))),
+                   "probabilidades_red": dict(zip(NIVELES_RIESGO, map(float, pred["proba"])))},
         "nota": {"esperada": pred["nota"], "mae": mae,
                  "rango": [max(pred["nota"] - mae, 0), min(pred["nota"] + mae, 100)]},
         "cluster": {**perfil, "neurona": list(perfil["neurona"]),
@@ -301,6 +304,22 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str =
     return res
 
 
+def riesgo_combinado(proba_red, nota: float, mae: float, metas: tuple) -> np.ndarray:
+    """Riesgo que se muestra: promedio de la red de riesgo y de lo que implica la nota esperada.
+
+    Las dos redes (riesgo y nota) se entrenan por separado y en perfiles poco comunes pueden
+    contradecirse (p. ej. nota esperada 47 con «riesgo medio»). Aquí la nota se convierte en
+    probabilidades por banda suponiendo un error normal (σ ≈ 1.25 × MAE) y se promedia con la
+    salida de la red, así el nivel y la nota no se contradicen.
+    """
+    from math import erf, sqrt
+    sigma = max(1.25 * mae, 1e-6)
+    cdf = lambda x: 0.5 * (1 + erf((x - nota) / (sigma * sqrt(2))))  # noqa: E731
+    bajo_corte, alto_corte = metas  # nota ≥ bajo_corte → bajo; < alto_corte → alto
+    p_nota = np.array([1 - cdf(bajo_corte), cdf(bajo_corte) - cdf(alto_corte), cdf(alto_corte)])
+    return (np.asarray(proba_red, dtype=float) + p_nota) / 2
+
+
 def explicar(r: dict) -> list[str]:
     """Explicación en lenguaje sencillo del resultado."""
     nivel, p = r["riesgo"]["nivel"], r["riesgo"]["probabilidad"]
@@ -311,7 +330,7 @@ def explicar(r: dict) -> list[str]:
         "medio": f"Probablemente apruebes, pero cerca del límite (entre {u['alto']:g} y {u['bajo']:g}).",
         "alto": f"Hay riesgo de reprobar (nota menor a {u['alto']:g}). ¡Todavía hay tiempo de cambiarlo!",
     }
-    out = [f"{textos[nivel]} El ensamble de redes le da {p:.0%} de probabilidad al riesgo {nivel}.",
+    out = [f"{textos[nivel]} Juntando la red de riesgo y la nota esperada, el riesgo {nivel} tiene {p:.0%} de probabilidad.",
            f"Tu calificación esperada en {r.get('materia', 'Matemáticas II')} es {nota:.0f} (entre {lo:.0f} y {hi:.0f})."]
     mejoras = [f for f in r["factores"] if not f["ya está bien"] and f["cambio en la nota"] > 0.3]
     if mejoras:
@@ -322,7 +341,11 @@ def explicar(r: dict) -> list[str]:
     if h["actuales"] < h["recomendadas"]:
         out.append(f"Te recomendamos estudiar {h['recomendadas']} h por semana (hoy {h['actuales']:g} h).")
     top = [t["tema"] for t in r["temas"][:2]]
-    out.append(f"Temas a reforzar primero: {' y '.join(top)}.")
+    if r["test"]["errores"]:
+        out.append(f"Temas a reforzar primero: {' y '.join(top)}.")
+    else:  # test perfecto: el dominio no llega a 100 % (solo 2 preguntas por tema), pero no hay tema débil
+        out.append(f"Acertaste todas las preguntas del test: no se ve un tema débil. Para repasar, "
+                   f"empieza por {' y '.join(top)}, que son los que más pesan en la materia.")
     integ = r.get("integridad")
     if integ and integ["nivel"] != "alta":
         out.append(f"La confiabilidad del test es {integ['nivel']} ({integ['indice']:.0%}): "

@@ -63,19 +63,31 @@ def curva_horas(fila, red_n: MLP, media_d1: float, horas=HORAS) -> np.ndarray:
 
 
 def horas_recomendadas(horas, curva, metas=(80.0, 70.0), ganancia_min: float = 0.25) -> int:
-    """La menor cantidad de horas con la que la nota esperada llega a riesgo bajo (80);
-    si no se llega, a aprobar (70). Si tampoco, las horas a partir de las cuales
-    ninguna hora extra suma ``ganancia_min`` puntos o más."""
+    """Horas de estudio semanales a recomendar según la curva nota-vs-horas.
+
+    - Si la nota esperada llega a riesgo bajo (``metas[0]``, 80): la menor cantidad de horas
+      con la que llega.
+    - Si no llega: las horas a partir de las cuales ninguna hora extra suma ``ganancia_min``
+      puntos o más (rendimientos decrecientes), pero nunca menos de las necesarias para
+      aprobar (``metas[1]``, 70). Antes se devolvía la primera hora que llegaba a 70, y a
+      quien ya aprobaba con 0 h (riesgo medio) se le recomendaban 0 h aunque estudiar más
+      todavía le subiera la nota.
+    """
     horas, curva = np.asarray(horas), np.asarray(curva)
-    for meta in metas:
-        llega = np.flatnonzero(curva >= meta)
-        if len(llega):
-            return int(horas[llega[0]])
+    llega = np.flatnonzero(curva >= metas[0])
+    if len(llega):
+        return int(horas[llega[0]])
     ganancia = np.diff(curva)
+    codo = int(horas[-1])
     for k in range(len(ganancia)):
         if (ganancia[k:] < ganancia_min).all():
-            return int(horas[k])
-    return int(horas[-1])
+            codo = int(horas[k])
+            break
+    for meta in metas[1:]:
+        llega = np.flatnonzero(curva >= meta)
+        if len(llega):
+            return max(int(horas[llega[0]]), codo)
+    return codo
 
 
 # ---------------------------------------------------------------- factores

@@ -91,6 +91,13 @@ VARIABLES: list[Variable] = [
     Variable("integ_peso", "Peso de una respuesta correcta sospechosa", "decimal", 0.25,
              "Integridad del test", "1 = cuenta normal, 0 = no cuenta para estimar el dominio (θ).",
              0, 1, 0.05, reentrenar=False),
+    # --- Calificaciones (no requiere reentrenar: se aplica en la siguiente evaluación)
+    Variable("penal_oportunidad", "Puntos menos por cada oportunidad extra", "decimal", 12.0,
+             "Calificaciones",
+             "La calificación que ve el modelo baja estos puntos por cada oportunidad después de la "
+             "1ª (100 en 3ª → 76). Así acreditar en 1ª siempre cuenta más que en oportunidades "
+             "posteriores. 0 = la oportunidad solo cuenta como materia reprobada.",
+             0, 25, 1, reentrenar=False),
     # --- Umbrales de riesgo
     Variable("corte_bajo", "Nota mínima para riesgo bajo", "decimal", simulador.CORTE_BAJO,
              "Umbrales de riesgo", "Nota ≥ este valor → riesgo bajo.", 60, 100, 0.5),

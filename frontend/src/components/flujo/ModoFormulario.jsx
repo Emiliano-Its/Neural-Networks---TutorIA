@@ -23,7 +23,7 @@ function indicePendiente(s) {
   return Infinity // test
 }
 
-export default function ModoFormulario({ s, materias, actual, actualizar, elegirMateria, responderTest }) {
+export default function ModoFormulario({ s, materias, actual, actualizar, elegirMateria, responderTest, borradorCal, setBorradorCal }) {
   const [idx, setIdx] = useState(() => indicePendiente(s))
   const [dir, setDir] = useState(1)
   const nEnc = s.preguntas?.encuesta.length ?? 0
@@ -35,7 +35,7 @@ export default function ModoFormulario({ s, materias, actual, actualizar, elegir
     paso = <PasoMateria key="materia" materias={materias.materias} valor={s.materia}
       onSiguiente={(id) => { elegirMateria(id); ir(1) }} />
   } else if (idx === 1) {
-    paso = <PasoCalificaciones key="cal" s={s} actualizar={actualizar} onAtras={() => ir(0, -1)} onSiguiente={() => ir(2)} />
+    paso = <PasoCalificaciones key="cal" s={s} actualizar={actualizar} borrador={borradorCal ?? s.calificaciones} setBorrador={setBorradorCal} onAtras={() => ir(0, -1)} onSiguiente={() => ir(2)} />
   } else if (!enTest) {
     const p = s.preguntas.encuesta[idx - 2]
     paso = <PasoEncuesta key={p.clave} p={p} numero={idx - 1} total={nEnc} valorInicial={s.encuesta[p.clave]}
@@ -88,8 +88,8 @@ function PasoMateria({ materias, valor, onSiguiente }) {
   )
 }
 
-function PasoCalificaciones({ s, actualizar, onAtras, onSiguiente }) {
-  const [borrador, setBorrador] = useState(() => s.calificaciones)
+// el borrador vive en Usuario: si cambias de modo a media tabla y vuelves, sigue ahí
+function PasoCalificaciones({ s, actualizar, borrador, setBorrador, onAtras, onSiguiente }) {
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
   if (!s.preguntas) return <Esqueleto />
@@ -157,6 +157,7 @@ function PasoEncuesta({ p, numero, total, valorInicial, onAtras, onSiguiente }) 
 
 function PasoTest({ q, onResponder }) {
   const [eleccion, setEleccion] = useState(null)
+  const [enviada, setEnviada] = useState(false) // evita mandar la misma respuesta dos veces (doble clic)
   return (
     <section className="tarjeta paso brillo">
       <p className="paso-meta">Pregunta {q.k + 1} de {q.total} · {q.habilidad}</p>
@@ -164,13 +165,13 @@ function PasoTest({ q, onResponder }) {
       <motion.div className="opciones" role="radiogroup" aria-label="Opciones" variants={cascada(0.05, 0.08)} initial="initial" animate="animate">
         {q.opciones.map((o) => (
           <motion.div key={o} variants={hijo}>
-            <Opcion sel={eleccion === o} onClick={() => setEleccion(o)}><span className="txt">{o}</span></Opcion>
+            <Opcion sel={eleccion === o} disabled={enviada} onClick={() => setEleccion(o)}><span className="txt">{o}</span></Opcion>
           </motion.div>
         ))}
       </motion.div>
       <Acciones>
         <span className="tenue peq">No verás si acertaste. Tómate tu tiempo.</span>
-        <motion.button className="btn grad" disabled={!eleccion} onClick={() => onResponder(eleccion)} {...presion}>Responder <ArrowRight size={18} aria-hidden /></motion.button>
+        <motion.button className="btn grad" disabled={!eleccion || enviada} onClick={() => { if (enviada) return; setEnviada(true); onResponder(eleccion) }} {...presion}>Responder <ArrowRight size={18} aria-hidden /></motion.button>
       </Acciones>
     </section>
   )

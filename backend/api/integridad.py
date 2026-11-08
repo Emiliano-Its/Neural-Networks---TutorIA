@@ -79,18 +79,28 @@ def estimar_ponderado(calificadas: list[dict], pesos: list[float]):
 
 
 def tiempo_promedio_modelo(calificadas: list[dict], cfg: dict) -> float:
-    """Promedio de tiempo que entra al modelo.
+    """Promedio de tiempo que entra al modelo (en el simulador, más rápido = más hábil).
 
-    - Una respuesta «muy rápida» cuenta con su tiempo esperado (neutral): si no, contestar al
-      azar en 2 s haría que el modelo creyera que el alumno es muy hábil (en el simulador,
-      más rápido = más hábil).
-    - Cada pregunta se topa a 3 min (una distracción no desborda el promedio).
+    - Una respuesta incorrecta «muy rápida» cuenta como el tiempo más lento del rango del
+      modelo: si contara como rápida o como neutral, contestar al azar en 2 s daría mejor
+      nota que intentar las preguntas con calma y fallarlas. Así, ir rápido sin leer no ayuda.
+    - Una respuesta correcta «muy rápida» cuenta con su tiempo esperado (neutral): ya pesa
+      menos en θ por sospechosa; contarla además como lenta la castigaría dos veces.
+    - Una respuesta «muy lenta» (más de ``integ_lenta_min``) también cuenta con su tiempo
+      esperado: ya se marca y, si fue correcta, pesa menos en θ.
+    - Las demás se topan a 3 min (una distracción no desborda el promedio).
     - El promedio se acota al rango con que se entrenó el modelo.
     """
+    lo, hi = RANGO_PROMEDIO_MODELO_S
     tiempos = []
     for x in calificadas:
         seg, esperado = float(x.get("segundos", 30.0)), tiempo_esperado(x["b"], cfg)
         rapida = seg < max(cfg["integ_min_s"], cfg["integ_frac_rapida"] * esperado)
-        tiempos.append(esperado if rapida else min(seg, TOPE_TIEMPO_MODELO_S))
-    lo, hi = RANGO_PROMEDIO_MODELO_S
+        lenta = seg > cfg["integ_lenta_min"] * 60
+        if rapida:
+            tiempos.append(esperado if x["r"] == 1 else hi)
+        elif lenta:
+            tiempos.append(esperado)
+        else:
+            tiempos.append(min(seg, TOPE_TIEMPO_MODELO_S))
     return float(np.clip(np.mean(tiempos), lo, hi))

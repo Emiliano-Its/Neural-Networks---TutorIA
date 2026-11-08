@@ -63,7 +63,7 @@ export default function Resultado({ r, onRepetir }) {
       </div>
 
       <div className="dos pila">
-        <Tarjeta icono={BookOpen} titulo="Temas a reforzar">
+        <Tarjeta icono={BookOpen} titulo={r.test.errores.length ? 'Temas a reforzar' : 'Temas para repasar'}>
           {r.temas.map((t, i) => (
             <div key={t.clave} className="tema">
               <div className="tema-fila"><span>{t.tema}</span><span className="tenue num">{Math.round(t.dominio * 100)}%</span></div>

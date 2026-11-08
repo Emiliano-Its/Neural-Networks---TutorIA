@@ -26,6 +26,10 @@ export default function Usuario() {
   const [evaluando, setEvaluando] = useState(false)
   // cronómetro por pregunta: no cuenta el tiempo con la pestaña oculta (visibilitychange)
   const crono = useRef({ inicio: 0, acumulado: 0 })
+  // mensajes del modo conversación: viven aquí para no perderse al cambiar de modo y volver
+  const [charla, setCharla] = useState([])
+  // tabla de calificaciones a medias (antes de «Continuar»): tampoco se pierde al cambiar de modo
+  const [borradorCal, setBorradorCal] = useState(null)
   const pend = pendiente(s)
 
   useEffect(() => {
@@ -43,11 +47,15 @@ export default function Usuario() {
     return () => document.removeEventListener('visibilitychange', cambio)
   }, [])
 
-  const actualizar = useCallback((cambios) => setS((x) => ({ ...x, ...cambios })), [])
+  const actualizar = useCallback((cambios) => {
+    setS((x) => ({ ...x, ...cambios }))
+    if ('calificaciones' in cambios) setBorradorCal(null) // ya se guardaron: el borrador sobra
+  }, [])
 
   const elegirMateria = useCallback(async (id) => {
     if (id === s.materia && s.preguntas) return
     setS((x) => ({ ...x, materia: id, preguntas: null, calificaciones: {} }))
+    setBorradorCal(null)
     try {
       const p = await api.preguntasMateria(id)
       setS((x) => (x.materia === id ? { ...x, preguntas: p } : x))
@@ -79,16 +87,22 @@ export default function Usuario() {
     if (!actual) return
     const c = crono.current
     const segundos = Math.round((c.acumulado + (c.inicio ? Date.now() - c.inicio : 0)) / 100) / 10
-    setS((x) => ({ ...x, respuestas: [...x.respuestas, { h: actual.h, b: actual.b, opcion, segundos }] }))
+    // un doble clic (o dos toques rápidos en el chat) no debe registrar la misma pregunta dos veces:
+    // solo cuenta la respuesta si todavía es la pregunta que se está mostrando
+    setS((x) => (x.respuestas.length !== actual.k ? x
+      : { ...x, respuestas: [...x.respuestas, { h: actual.h, b: actual.b, opcion, segundos }] }))
   }, [actual])
 
   function reiniciar() {
     setS({ ...INICIAL, semilla: Math.floor(Math.random() * 1e6) })
     setResultado(null); setActual(null); setError(''); setModo(null)
+    setCharla([]); setBorradorCal(null)
     window.scrollTo({ top: 0 })
   }
 
   const ctx = { s, pend, materias, actual, actualizar, elegirMateria, responderTest }
+  const ctxChat = { ...ctx, mensajes: charla, setMensajes: setCharla }
+  const ctxForm = { ...ctx, borradorCal, setBorradorCal }
   const otro = modo === 'formulario' ? 'conversacion' : 'formulario'
 
   let vista
@@ -123,7 +137,7 @@ export default function Usuario() {
             {otro === 'conversacion' ? <><MessagesSquare size={15} aria-hidden /> Cambiar a conversación</> : <><FileText size={15} aria-hidden /> Cambiar a formulario</>}
           </button>
         </div>
-        {modo === 'formulario' ? <ModoFormulario {...ctx} /> : <ModoConversacion {...ctx} />}
+        {modo === 'formulario' ? <ModoFormulario {...ctxForm} /> : <ModoConversacion {...ctxChat} />}
       </motion.div>
     )
   }

@@ -9,7 +9,8 @@ Aquí vive, en un solo lugar:
 
 Mapeo de calificaciones (supuestos):
 - cal_<materia> = la calificación con la que acreditó la materia (o la última si no la ha
-  acreditado), tal cual la escribe el alumno.
+  acreditado), menos ``penal_oportunidad`` puntos por cada oportunidad después de la 1ª
+  (ver calificacion_efectiva): pasar con 100 en 3ª cuenta menos que con 80 en 1ª.
 - A2 (materias reprobadas en 1er semestre) = materias con oportunidad > 1 o no acreditadas.
   En el simulador A2 = materias con calificación < 70 (hay una sola calificación por materia),
   así que «la reprobó al menos una vez» es el equivalente directo. Diferencia: quien acreditó
@@ -23,6 +24,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+from . import config
 from .servicio import _NUMERICAS, preguntas_encuesta
 
 RUTA_MATERIAS = Path(__file__).with_name("materias.json")
@@ -126,10 +128,22 @@ def _validar_encuesta(encuesta: dict) -> dict:
     return out
 
 
+def calificacion_efectiva(cal: float, oportunidad: int, penal: float) -> float:
+    """Calificación que ve el modelo: acreditar en una oportunidad posterior cuenta menos.
+
+    Cada oportunidad después de la 1ª resta ``penal`` puntos (con 12: 100 en 3ª → 76, peor
+    que 80 en 1ª; 70 en 6ª → 10). Una materia no acreditada se queda con su calificación.
+    """
+    if oportunidad in (1, NO_ACREDITADA):
+        return cal
+    return max(0.0, cal - penal * (oportunidad - 1))
+
+
 def encuesta_modelo(materia_id: str, calificaciones: dict, encuesta: dict) -> dict:
     """Lo que contesta el alumno → la encuesta que usa tutoria/panel (cal_*, A2, B1–D1)."""
     cal = validar_calificaciones(materia_id, calificaciones)
-    out = {clave: d["cal"] for clave, d in cal.items()}
+    penal = config.cargar()["penal_oportunidad"]
+    out = {clave: calificacion_efectiva(d["cal"], d["oportunidad"], penal) for clave, d in cal.items()}
     out["A2"] = sum(d["oportunidad"] != 1 for d in cal.values())  # reprobada al menos una vez
     out.update(_validar_encuesta(encuesta))
     return out
@@ -142,8 +156,32 @@ def _norm(t: str) -> str:
     return re.sub(r"\s+", " ", t.replace("−", "-").replace("–", "-")).strip()
 
 
+# números escritos con letra (0–100) → dígitos: «noventa y cinco» → 95, «mate dos» → «mate 2».
+# «un»/«una» no se convierten («saqué un 85», «la reprobé una vez»).
+_UNIDADES = {"dos": 2, "tres": 3, "cuatro": 4, "cinco": 5, "seis": 6, "siete": 7, "ocho": 8, "nueve": 9}
+_ESPECIALES = {"cero": 0, "uno": 1, "diez": 10, "once": 11, "doce": 12, "trece": 13, "catorce": 14,
+               "quince": 15, "dieciseis": 16, "diecisiete": 17, "dieciocho": 18, "diecinueve": 19,
+               "veinte": 20, "veintiuno": 21, "veintiun": 21, "veintidos": 22, "veintitres": 23,
+               "veinticuatro": 24, "veinticinco": 25, "veintiseis": 26, "veintisiete": 27,
+               "veintiocho": 28, "veintinueve": 29, "cien": 100, "ciento": 100, **_UNIDADES}
+_DECENAS = {"treinta": 30, "cuarenta": 40, "cincuenta": 50, "sesenta": 60, "setenta": 70,
+            "ochenta": 80, "noventa": 90}
+_UNO_O_MAS = {"uno": 1, "un": 1, "una": 1, **_UNIDADES}
+
+
+def _palabras_a_numeros(t: str) -> str:
+    t = re.sub(rf"\b({'|'.join(_DECENAS)})(?: y ({'|'.join(_UNO_O_MAS)}))?\b",
+               lambda m: str(_DECENAS[m.group(1)] + (_UNO_O_MAS[m.group(2)] if m.group(2) else 0)), t)
+    t = re.sub(rf"\b({'|'.join(sorted(_ESPECIALES, key=len, reverse=True))})\b",
+               lambda m: str(_ESPECIALES[m.group(1)]), t)
+    return re.sub(r"\b(\d+) y media\b", r"\1.5", t)  # «6 y media» → 6.5
+
+
 _ORD_PAL = {"primera": 1, "primer": 1, "segunda": 2, "tercera": 3, "cuarta": 4, "quinta": 5, "sexta": 6,
-            "ordinario": 1, "ordinaria": 1}
+            "ordinario": 1, "ordinaria": 1, "extraordinario": 2, "extraordinaria": 2}
+# «la reprobé una vez» → la acreditó en 2ª; «la reprobé 2 veces» → en 3ª
+_REPROBADA_VECES = re.compile(r"\b(?:reprob|tron|perd|fall)\w*\b.*?\b(una|1|\d) (?:vez|veces)\b"
+                              r"|\b(una|1|\d) (?:vez|veces)\b.*?\b(?:reprob|tron|perd|fall)\w*")
 _NO_ACRED = re.compile(r"\bno (la )?(he )?(acredit|pas|aprob)|\bno acredit|\bdebo\b|\bsigo debiendo|\btodavia no|\baun no")
 _SALTAR = re.compile(r"\b(saltar|salta|omitir|paso|prefiero no|no quiero|no contesto|sin respuesta)\b")
 
@@ -151,6 +189,12 @@ _SALTAR = re.compile(r"\b(saltar|salta|omitir|paso|prefiero no|no quiero|no cont
 def _oportunidad(t: str):
     if _NO_ACRED.search(t):
         return NO_ACREDITADA
+    m = _REPROBADA_VECES.search(t)
+    if m:
+        veces = m.group(1) or m.group(2)
+        n = 1 if veces in ("una", "1") else int(veces)
+        if 1 <= n <= 5:
+            return n + 1
     m = re.search(r"\b([1-6])\s*(ra|da|ta|a|o|°|ª|era|nda)\b", t) or re.search(r"oportunidad\s*([1-6])\b", t)
     if m:
         return int(m.group(1))
@@ -164,6 +208,7 @@ def _numeros(t: str) -> list[float]:
     # quita ordinales tipo «2da», «1ª» para que no cuenten como número
     t = re.sub(r"\b[1-6]\s*(ra|da|ta|a|o|°|ª|era|nda)\b", " ", t)
     t = re.sub(r"oportunidad\s*[1-6]\b", " ", t)
+    t = re.sub(r"\b\d+ (?:vez|veces)\b", " ", t)  # «la reprobé 2 veces» no es una calificación
     return [float(x.replace(",", ".")) for x in re.findall(r"\d+(?:[.,]\d+)?", t)]
 
 
@@ -177,6 +222,9 @@ def interpretar(paso: dict, texto: str, parcial: dict | None = None) -> dict:
     tipo = paso.get("tipo")
     if not t:
         return {"ok": False, "mensaje": "No alcancé a leer tu respuesta. ¿Me la escribes otra vez?"}
+
+    if tipo in ("materia", "calificacion", "numero", "likert"):
+        t = _palabras_a_numeros(t)
 
     if tipo == "materia":
         candidatas = []
@@ -232,6 +280,19 @@ def interpretar(paso: dict, texto: str, parcial: dict | None = None) -> dict:
         return {"ok": False, "mensaje": "Elige una de las opciones o escribe un número del 1 al 5."}
 
     if tipo == "numero":
+        clave = paso.get("clave")
+        rango = f"{paso['min']:g} y {paso['max']:g}{' ' + paso['unidad'] if paso.get('unidad') else ''}"
+        otra = ((clave != "B6" and re.search(r"\bmaterias?\b", t))
+                or (clave in ("B2", "B6") and re.search(r"\bhoras?\b|\bhrs?\b", t))
+                or (clave != "B2" and "%" in t))
+        if otra:  # p. ej. «tengo 8 materias» cuando se preguntan horas de trabajo
+            return {"ok": False, "mensaje": f"Creo que eso responde otra pregunta. {paso['texto']} (un número entre {rango})"}
+        if clave == "B5" and re.search(r"\bmedio tiempo\b", t):
+            return {"ok": True, "valor": 20}
+        if clave == "B5" and re.search(r"\btiempo completo\b", t):
+            return {"ok": True, "valor": 40}
+        if clave in ("B1", "B5") and re.fullmatch(r"(no|nada|ninguna|cero|0)( \w+)*", t) and not re.search(r"\d*[1-9]", t):
+            return {"ok": True, "valor": 0}  # «no trabajo», «nada», «no estudio»
         nums = _numeros(t)
         if not nums:
             return {"ok": False, "mensaje": f"Necesito un número entre {paso['min']:g} y {paso['max']:g}{' ' + paso['unidad'] if paso.get('unidad') else ''}."}
@@ -247,16 +308,18 @@ def interpretar(paso: dict, texto: str, parcial: dict | None = None) -> dict:
     if tipo == "opcion_test":
         ops = paso["opciones"]
         letras = "abcd"
-        m = re.fullmatch(r"(?:la |inciso |opcion )?\(?([a-d1-4])\)?\.?", t)
+        compacto = lambda s: re.sub(r"\s+", "", _norm(s))  # noqa: E731
+        # primero el texto exacto: si una opción es «3», escribir «3» la elige a ella, no a la c)
+        for o in ops:
+            if compacto(o) == compacto(texto):
+                return {"ok": True, "valor": o}
+        m = (re.fullmatch(r"(?:la |el |inciso |opcion |letra |respuesta )?\(?([a-d1-4])\)?\.?", t)
+             or re.search(r"\b(?:la|el|inciso|opcion|letra|respuesta|es)\s+\(?([a-d])\)?[.!]?$", t))
         if m:
             c = m.group(1)
             i = letras.index(c) if c in letras else int(c) - 1
             if i < len(ops):
                 return {"ok": True, "valor": ops[i]}
-        compacto = lambda s: re.sub(r"\s+", "", _norm(s))  # noqa: E731
-        for o in ops:
-            if compacto(o) == compacto(texto):
-                return {"ok": True, "valor": o}
         return {"ok": False, "mensaje": "Elige una opción tocándola o escribe su letra (a, b, c o d)."}
 
     raise ValueError(f"Tipo de paso desconocido: {tipo}")
