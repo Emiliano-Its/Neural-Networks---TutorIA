@@ -1,14 +1,9 @@
-from pathlib import Path
-
 import numpy as np
-from streamlit.testing.v1 import AppTest
 
 from tutoria import tri
 from tutoria.banco import cargar
 from tutoria.simulador import CLAVES_HABILIDADES
 from tutoria.simulador import test_adaptativo as aplicar_test
-
-PAGINA = str(Path(__file__).resolve().parents[2] / "legacy" / "streamlit" / "pages" / "6_Test.py")
 
 
 def test_banco_valido_y_en_orden_del_simulador():
@@ -58,16 +53,3 @@ def test_estimacion_identica_al_simulador():
     for i in range(n):
         dominio, _, _ = tri.estimar(resp[i] + [(h15[i], b15[i], r15[i])])
         assert np.allclose(dominio, sim["dominio"][i])
-
-
-def test_pagina_test_completa():
-    at = AppTest.from_file(PAGINA).run()
-    for _ in range(15):
-        at.radio[0].set_value(at.radio[0].options[0])
-        at.button[0].click().run()
-        assert not at.exception
-    t = at.session_state["test"]
-    assert len(t["dominios"]) == 7 and all(0 < v < 1 for v in t["dominios"].values())
-    assert t["tiempo_promedio"] >= 0
-    assert len(t["respuestas"]) == 15
-    assert all(e["error"] for e in t["errores"])

@@ -1,15 +1,11 @@
-from pathlib import Path
-
 import numpy as np
 import pytest
-from streamlit.testing.v1 import AppTest
 
 from tutoria import panel
 from tutoria.banco import cargar
 from tutoria.experimento import entrenar_nota, entrenar_riesgo, preparar
 from tutoria.simulador import CLAVES_HABILIDADES, CLAVES_MATERIAS
 
-PAGINA = str(Path(__file__).resolve().parents[2] / "legacy" / "streamlit" / "pages" / "7_Mi_resultado.py")
 
 ENCUESTA = {**{f"cal_{m}": 75.0 for m in CLAVES_MATERIAS}, "A2": 0, "B1": 4.0, "B2": 0.8,
             "B3": 5.5, "B4": 2, "B5": 20, "B6": 7, "B7": 1, "C1": 3, "C2": 85, "C3": 3,
@@ -73,18 +69,3 @@ def test_nombre_perfil():
     w = np.array([1.0 if e.startswith(("pos_", "dominio_")) else 0.0 for e in ENTRADAS_SOM])
     assert panel.nombre_perfil(w).startswith("Base matemática sólida")
     assert panel.nombre_perfil(-w).startswith("Base matemática por reforzar")
-
-
-def test_pagina_sin_datos_manda_a_encuesta_y_test():
-    at = AppTest.from_file(PAGINA).run()
-    assert not at.exception
-    assert any("Encuesta" in w.value and "Test" in w.value for w in at.warning)
-
-
-def test_pagina_completa():
-    at = AppTest.from_file(PAGINA, default_timeout=300)
-    at.session_state["encuesta"] = ENCUESTA
-    at.session_state["test"] = TEST
-    at.run()
-    assert not at.exception
-    assert any(m.label == "Nivel de riesgo" for m in at.metric)

@@ -139,7 +139,7 @@ def _metricas(d, red_r, red_n, som, media, desv) -> dict:
 
 
 # ---------------------------------------------------------------- preguntas
-# Rangos de los controles (los mismos que pages/5_Encuesta.py).
+# Rangos de los controles de la encuesta.
 _NUMERICAS = {
     "A2": dict(min=0, max=7, paso=1, defecto=0),
     "B1": dict(min=0, max=40, paso=0.5, defecto=8, unidad="h/semana"),
@@ -230,7 +230,7 @@ def siguiente_pregunta(semilla: int, respuestas: list[dict]) -> dict:
 
 # ---------------------------------------------------------------- evaluación
 def resultado_test(semilla: int, respuestas: list[dict]) -> dict:
-    """Mismo cálculo que finalizar() de pages/6_Test.py."""
+    """Califica las 15 respuestas del test y estima el dominio de cada habilidad (TRI)."""
     cal = _calificar(respuestas)
     _validar_camino(cal, semilla)
     if len(cal) != tri.N_PREGUNTAS:

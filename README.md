@@ -20,8 +20,7 @@ hiperparámetros y reentrenar.
 |---|---|
 | Backend | Python 3, FastAPI, Uvicorn, NumPy, pandas |
 | Frontend | React 19, Vite, React Router, Motion, lucide-react, oxlint |
-| App original (legacy) | Streamlit, Matplotlib |
-| Pruebas | pytest (incluye pruebas de las páginas de Streamlit con `AppTest`) |
+| Pruebas | pytest |
 
 ## Estructura
 
@@ -36,8 +35,6 @@ hiperparámetros y reentrenar.
 │   ├── config.json     # hiperparámetros ajustables desde el panel de admin
 │   └── requirements.txt
 ├── frontend/           # app web en React + Vite
-├── legacy/streamlit/   # primera versión de la app (Streamlit)
-├── design/landing/     # diseño fuente de la landing y logo de TutorIA
 ├── docs/               # especificación del simulador y guía del frontend
 ├── pytest.ini
 └── run_dev.sh          # levanta API + frontend en un solo comando
@@ -72,12 +69,6 @@ cd frontend && npm run dev                        # app web
 Al arrancar, la API entrena los modelos en unos segundos. `GET /api/salud` dice cuándo terminó.
 El panel de administrador está en `/admin`. Su contraseña se configura con la variable de
 entorno `ADMIN_PASSWORD` (ver [`docs/frontend.md`](docs/frontend.md)).
-
-La app original en Streamlit sigue funcionando:
-
-```bash
-PYTHONPATH=backend streamlit run legacy/streamlit/app.py
-```
 
 ## Pruebas y calidad
 

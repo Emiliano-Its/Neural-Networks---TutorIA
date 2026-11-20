@@ -41,7 +41,7 @@ class Variable:
     reentrenar: bool = True  # ¿hay que reentrenar para que tenga efecto?
 
 
-# Los valores por defecto son los que ya usa la app de Streamlit.
+# Valores por defecto de los hiperparámetros.
 VARIABLES: list[Variable] = [
     # --- Simulador
     Variable("semilla", "Semilla del simulador", "entero", simulador.SEMILLA, "Simulador",

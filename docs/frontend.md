@@ -1,7 +1,6 @@
 # TutorIA UANL · Frontend en React + API FastAPI
 
-La app de Streamlit (`PYTHONPATH=backend streamlit run legacy/streamlit/app.py`) sigue igual. Este es un frontend nuevo
-en React que habla con una API en FastAPI; la API **reutiliza** el paquete `backend/tutoria/`
+Frontend en React que habla con una API en FastAPI; la API **reutiliza** el paquete `backend/tutoria/`
 (simulador, MLP, SOM, TRI, banco de preguntas y panel), no duplica la lógica.
 
 ## Correr
