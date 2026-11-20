@@ -87,3 +87,18 @@ def test_ensamble_promedia(datos):
     assert np.allclose(en.predecir(X), np.mean([m.predecir(X) for m in en.modelos], 0))
     with pytest.raises(ValueError):
         Ensamble([er.modelos[0], en.modelos[0]])
+
+
+def test_paro_temprano_y_poco_sobreajuste(datos):
+    """La red por defecto no debe memorizar: entrenamiento y validación quedan cerca."""
+    red = entrenar_riesgo(datos)
+    assert red.mejor_epoca is not None and len(red.historial["perdida"]) < 150
+    acc = lambda parte: evaluar_riesgo(red, datos, parte)["exactitud"]  # noqa: E731
+    assert acc("ent") - acc("val") < 0.08
+
+
+def test_reentrenar_da_resultados_parecidos(datos):
+    """Dos semillas distintas deben dar casi la misma nota para el mismo alumno."""
+    a, b = entrenar_nota(datos, semilla=0), entrenar_nota(datos, semilla=1)
+    X = datos.X[datos.val]
+    assert np.abs(a.predecir(X) - b.predecir(X)).mean() < 1.5

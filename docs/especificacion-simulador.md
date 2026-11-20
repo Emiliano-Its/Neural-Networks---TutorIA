@@ -84,3 +84,28 @@ Una prueba con test al azar, 50% de asistencia, 35 h de trabajo, 8 materias y si
 8. El peso del test en z (0.40·D) se probó en 0.50 y apenas cambiaba el caso de prueba, así que se dejó como estaba.
 
 En la API (`api/integridad.py`): las respuestas correctas demasiado rápidas para su dificultad (o fáciles y de más de 20 min) pesan 0.25 en θ, y el tiempo promedio que entra al modelo usa el tiempo esperado en las respuestas muy rápidas y se acota a 30–70 s.
+
+## Cambios del 2026-11-10 (mejora de la predicción)
+
+Medidos entrenando en 8 cohortes (semillas distintas) y evaluando cada una en 2,000 alumnos simulados nuevos que la red nunca vio (16,000 en total). El simulador y sus 16 metas no cambiaron.
+
+9. Entrenamiento del MLP: paro temprano (se quedan los pesos de la mejor época de validación, paciencia 15), momento 0.9, tasa 0.005 con decaimiento 0.02 y L2 más fuerte. La red original (L2 0.001, 150 épocas fijas) memorizaba: 83% de exactitud en entrenamiento contra 67% en alumnos nuevos.
+10. Cohorte de entrenamiento de la API: 10,000 alumnos simulados (≈5,600 de Mate II) con L2 0.01, en lugar de 3,600 con L2 0.03. `simular()` y `data/alumnos.csv` siguen con 3,600. Con 3,600 la red no alcanza a aprender los efectos no lineales de los hábitos.
+11. Las horas de estudio (B1) entran a la red como log(1 + horas) (`entrada_horas`). Con las horas tal cual la curva nota-vs-horas salía casi recta y se recomendaba el máximo (20 h) al 43% de los alumnos; con la curva verdadera solo le toca al 1%.
+12. La nota mostrada se recorta a 0–100 (la red llegaba a predecir 104).
+
+| Medida (alumnos nuevos) | Original | Ahora |
+|---|---|---|
+| Exactitud del riesgo (ensamble) | 67.4% | 69.0% |
+| Exactitud de cada red sola | 65.2% | 68.8% |
+| MAE de la nota | 4.87 | 4.73 |
+| Errores graves (bajo ↔ alto) | 1.7% | 1.2% |
+| Riesgo y nota esperada se contradicen | 13.8% | 6.2% |
+| Nivel de riesgo que cambia al reentrenar con otras semillas | 11.6% | 2.9% |
+| Cambio medio de la nota al reentrenar | 1.31 | 0.31 |
+| Alumnos con recomendación de 20 h de estudio (real: 1%) | 43% | 1% |
+| Diferencia media con las horas recomendadas verdaderas | 7.2 h | 2.8 h |
+
+Se probaron y se descartaron por no mejorar: ensamble con validación cruzada, conexión lineal directa de la entrada a la salida, y las escalas √horas y log(1 + horas/4) para B1.
+
+Límites conocidos: entrenando con 40,000 alumnos la exactitud apenas llega a 69%, así que el tope lo pone el ruido de la nota (±5), no la red. La red sigue sin aprender que dormir más de 9 h baja la nota (su curva se aplana, pero no baja) ni que trabajar menos de 10 h no afecta (la ve como una recta).

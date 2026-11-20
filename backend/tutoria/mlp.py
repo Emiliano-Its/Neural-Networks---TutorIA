@@ -29,11 +29,20 @@ def _softmax(z):
 
 class MLP:
     def __init__(self, capas: list[int], activacion: str = "relu", tasa: float = 0.01,
-                 tarea: str = "binaria", l2: float = 0.0, semilla: int | None = 0):
-        """``capas`` incluye entrada y salida, p. ej. [28, 32, 16, 3]."""
+                 tarea: str = "binaria", l2: float = 0.0, semilla: int | None = 0,
+                 momento: float = 0.0, decaimiento: float = 0.0, paciencia: int = 0):
+        """``capas`` incluye entrada y salida, p. ej. [28, 32, 16, 3].
+
+        - ``momento``: fracción del paso anterior que se conserva (0 = descenso simple).
+        - ``decaimiento``: la tasa baja a tasa / (1 + decaimiento · época).
+        - ``paciencia``: si hay validación, se detiene tras tantas épocas sin mejorar y se
+          quedan los pesos de la mejor época (0 = entrena todas las épocas y usa los últimos).
+        """
         if tarea not in ("binaria", "multiclase", "regresion"):
             raise ValueError(f"tarea desconocida: {tarea}")
         self.capas, self.tarea, self.tasa, self.l2 = capas, tarea, tasa, l2
+        self.momento, self.decaimiento, self.paciencia = momento, decaimiento, paciencia
+        self.mejor_epoca: int | None = None
         self.f, self.df = ACTIVACIONES[activacion]
         rng = np.random.default_rng(semilla)
         escala = 2.0 if activacion == "relu" else 1.0
@@ -93,15 +102,31 @@ class MLP:
             Xv, Yv = self._norm(X_val), self._objetivo(y_val)
         rng = np.random.default_rng(semilla)
         self.historial = {"perdida": [], "perdida_val": []}
-        for _ in range(epocas):
+        self._vW = [np.zeros_like(W) for W in self.W]
+        self._vb = [np.zeros_like(b) for b in self.b]
+        tasa0, mejor, mejores, sin_mejora = self.tasa, np.inf, None, 0
+        self.mejor_epoca = None
+        for epoca in range(epocas):
+            self.tasa = tasa0 / (1 + self.decaimiento * epoca)
             orden = rng.permutation(len(Xn))
             for i in range(0, len(Xn), lote):
                 idx = orden[i:i + lote]
                 self._paso(Xn[idx], Y[idx])
             self.historial["perdida"].append(self._perdida(Y, self._adelante(Xn)[0][-1]))
             if hay_val:
-                self.historial["perdida_val"].append(
-                    self._perdida(Yv, self._adelante(Xv)[0][-1]))
+                pv = self._perdida(Yv, self._adelante(Xv)[0][-1])
+                self.historial["perdida_val"].append(pv)
+                if self.paciencia:
+                    if pv < mejor - 1e-5:
+                        mejor, sin_mejora, self.mejor_epoca = pv, 0, epoca + 1
+                        mejores = ([W.copy() for W in self.W], [b.copy() for b in self.b])
+                    else:
+                        sin_mejora += 1
+                        if sin_mejora >= self.paciencia:
+                            break
+        self.tasa = tasa0
+        if mejores is not None:
+            self.W, self.b = mejores
         return self
 
     def _paso(self, Xn, Y):
@@ -113,8 +138,10 @@ class MLP:
             gb = delta.sum(0)
             if k > 0:
                 delta = (delta @ self.W[k].T) * self.df(Z[k - 1])
-            self.W[k] -= self.tasa * gW
-            self.b[k] -= self.tasa * gb
+            self._vW[k] = self.momento * self._vW[k] - self.tasa * gW
+            self._vb[k] = self.momento * self._vb[k] - self.tasa * gb
+            self.W[k] += self._vW[k]
+            self.b[k] += self._vb[k]
 
     # --- predicción
     def predecir_proba(self, X):

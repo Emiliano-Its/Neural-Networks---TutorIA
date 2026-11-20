@@ -76,7 +76,9 @@ def entrenar(cfg: dict | None = None) -> Modelos:
             d = preparar(simular(cfg["semilla"], cfg["n_estudiantes"]))
             semillas = tuple(range(cfg["n_modelos"]))
             comun = dict(ocultas=tuple(cfg["capas_ocultas"]), activacion=cfg["activacion"],
-                         epocas=cfg["epocas"], lote=cfg["lote"], l2=cfg["l2"])
+                         epocas=cfg["epocas"], lote=cfg["lote"], l2=cfg["l2"],
+                         momento=cfg["momento"], decaimiento=cfg["decaimiento"],
+                         paciencia=cfg["paciencia"])
             red_r = ensamble_riesgo(d, semillas, tasa=cfg["tasa_riesgo"], **comun)
             red_n = ensamble_nota(d, semillas, tasa=cfg["tasa_nota"], **comun)
             som, media, desv, stats = _entrenar_som(d, cfg)
@@ -269,31 +271,35 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str =
     rec = panel.horas_recomendadas(panel.HORAS, curva, metas=metas)
     fac = panel.factores(fila, M.red_n, d.media_d1, rec)
     tem = panel.temas(test, BANCO)
-    plan = panel.plan_semanal(tem, max(actual, rec))
     hab = panel.habitos(encuesta)
     perfil = panel.perfil_som(M.som, M.som_media, M.som_desv, x, M.som_stats)
+    # el riesgo usa la predicción original; el piso solo afecta la nota que se muestra
     proba = riesgo_combinado(pred["proba"], pred["nota"], mae, metas)
     codigo = int(proba.argmax())
+    piso = float(config.cargar()["nota_piso"])
     nivel = NIVELES_RIESGO[codigo]
+    plan = panel.plan_por_riesgo(tem, max(actual, rec), nivel, hab, fac)
 
     res = {
         "riesgo": {"nivel": nivel, "codigo": codigo,
                    "probabilidad": float(proba[codigo]),
                    "probabilidades": dict(zip(NIVELES_RIESGO, map(float, proba))),
                    "probabilidades_red": dict(zip(NIVELES_RIESGO, map(float, pred["proba"])))},
-        "nota": {"esperada": pred["nota"], "mae": mae,
-                 "rango": [max(pred["nota"] - mae, 0), min(pred["nota"] + mae, 100)]},
+        "nota": nota_mostrada(pred["nota"], mae, piso),
         "cluster": {**perfil, "neurona": list(perfil["neurona"]),
                     "nota_media": _limpio(perfil["nota_media"]),
                     "pct_alto": _limpio(perfil["pct_alto"]),
                     "mapa_nota_media": [[_limpio(float(v)) for v in fila_]
                                         for fila_ in M.som_stats["nota_media"]]},
         "horas": {"actuales": actual, "recomendadas": rec,
-                  "curva": [{"horas": int(h), "nota": float(n)} for h, n in zip(panel.HORAS, curva)]},
+                  "curva": [{"horas": int(h), "nota": float(max(n, piso))}
+                            for h, n in zip(panel.HORAS, curva)]},
         "factores": fac.to_dict("records"),
         "temas": [{k: (float(v) if isinstance(v, (np.floating, float)) else v)
                    for k, v in t.items()} for t in tem.to_dict("records")],
-        "plan_semanal": plan.to_dict("records"),
+        "plan_semanal": [{k: s[k] for k in ("día", "tema", "horas")}
+                         for s in plan["sesiones"] if not s["fija"]],  # compatibilidad
+        "plan": plan,
         "habitos": hab.to_dict("records"),
         "test": {k: test[k] for k in ("dominios", "tiempo_promedio", "errores", "aciertos")},
         "integridad": test["integridad"],
@@ -302,6 +308,20 @@ def evaluar(encuesta: dict, semilla: int, respuestas: list[dict], materia: str =
     }
     res["explicacion"] = explicar(res)
     return res
+
+
+def nota_mostrada(nota: float, mae: float, piso: float) -> dict:
+    """Nota esperada que ve el alumno, con un piso (``nota_piso`` del panel de admin).
+
+    Con perfiles fuera de lo que vio la red al entrenar (p. ej. Mate I en 6ª oportunidad,
+    que entra como 10 aunque en los datos siempre es ≥ 70) la red de nota extrapola a
+    valores irreales como 8. Debajo del piso se muestra el piso y ``en_piso`` = True para
+    decir «o menos». El nivel de riesgo se calcula aparte con la predicción original.
+    """
+    esperada = max(nota, piso)
+    return {"esperada": esperada, "mae": mae,
+            "rango": [max(esperada - mae, piso, 0), min(esperada + mae, 100)],
+            "en_piso": bool(nota < piso), "piso": piso}
 
 
 def riesgo_combinado(proba_red, nota: float, mae: float, metas: tuple) -> np.ndarray:
@@ -331,7 +351,9 @@ def explicar(r: dict) -> list[str]:
         "alto": f"Hay riesgo de reprobar (nota menor a {u['alto']:g}). ¡Todavía hay tiempo de cambiarlo!",
     }
     out = [f"{textos[nivel]} Juntando la red de riesgo y la nota esperada, el riesgo {nivel} tiene {p:.0%} de probabilidad.",
-           f"Tu calificación esperada en {r.get('materia', 'Matemáticas II')} es {nota:.0f} (entre {lo:.0f} y {hi:.0f})."]
+           (f"Tu calificación esperada en {r.get('materia', 'Matemáticas II')} es de {nota:.0f} o menos."
+            if r["nota"].get("en_piso") else
+            f"Tu calificación esperada en {r.get('materia', 'Matemáticas II')} es {nota:.0f} (entre {lo:.0f} y {hi:.0f}).")]
     mejoras = [f for f in r["factores"] if not f["ya está bien"] and f["cambio en la nota"] > 0.3]
     if mejoras:
         f = mejoras[0]
@@ -340,6 +362,10 @@ def explicar(r: dict) -> list[str]:
     h = r["horas"]
     if h["actuales"] < h["recomendadas"]:
         out.append(f"Te recomendamos estudiar {h['recomendadas']} h por semana (hoy {h['actuales']:g} h).")
+    plan = r.get("plan")
+    if plan and plan["nivel"] != "bajo":
+        out.append(f"Sigue el {plan['titulo'].lower()}: {plan['horas_semana']:g} h por semana "
+                   f"en {len(plan['dias_estudio'])} días.")
     top = [t["tema"] for t in r["temas"][:2]]
     if r["test"]["errores"]:
         out.append(f"Temas a reforzar primero: {' y '.join(top)}.")

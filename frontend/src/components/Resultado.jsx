@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Timer, CircleCheck, Clock, LifeBuoy, Lightbulb, Map as MapaIcono, RotateCcw, TrendingUp, TriangleAlert, ShieldCheck, ShieldAlert, Shield } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardCheck, Flag, Target, Users, Timer, CircleCheck, Clock, LifeBuoy, Lightbulb, Map as MapaIcono, RotateCcw, TrendingUp, TriangleAlert, ShieldCheck, ShieldAlert, Shield } from 'lucide-react'
 import { animate, motion, useInView, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { alVer, EASE, presion } from '../movimiento.js'
@@ -6,7 +6,6 @@ import { alVer, EASE, presion } from '../movimiento.js'
 const COLOR = { bajo: 'var(--bajo)', medio: 'var(--medio)', alto: 'var(--alto)' }
 const TITULO = { bajo: 'Riesgo bajo', medio: 'Riesgo medio', alto: 'Riesgo alto' }
 const ICONO = { bajo: ShieldCheck, medio: Shield, alto: ShieldAlert }
-const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 export default function Resultado({ r, onRepetir }) {
   const nivel = r.riesgo.nivel
@@ -14,7 +13,7 @@ export default function Resultado({ r, onRepetir }) {
   return (
     <div className="resultado">
       <motion.section className="tarjeta brillo resumen" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: EASE }}>
-        <Medidor nota={r.nota.esperada} rango={r.nota.rango} color={COLOR[nivel]} />
+        <Medidor nota={r.nota.esperada} rango={r.nota.rango} enPiso={r.nota.en_piso} color={COLOR[nivel]} />
         <div>
           <span className="nivel-chip" style={{ color: COLOR[nivel] }}><Icono size={16} aria-hidden /> {TITULO[nivel]}</span>
           <h1>Tu resultado</h1>
@@ -36,6 +35,8 @@ export default function Resultado({ r, onRepetir }) {
           </div>
         </div>
       </motion.section>
+
+      {nivel !== 'bajo' && <PlanEstudio plan={r.plan} color={COLOR[nivel]} destacado />}
 
       <div className="dos pila">
         <Tarjeta icono={Clock} titulo="Horas de estudio">
@@ -62,8 +63,9 @@ export default function Resultado({ r, onRepetir }) {
         </Tarjeta>
       </div>
 
-      <div className="dos pila">
-        <Tarjeta icono={BookOpen} titulo={r.test.errores.length ? 'Temas a reforzar' : 'Temas para repasar'}>
+      {nivel === 'bajo' && <PlanEstudio plan={r.plan} color={COLOR[nivel]} />}
+
+      <Tarjeta icono={BookOpen} titulo={r.test.errores.length ? 'Temas a reforzar' : 'Temas para repasar'}>
           {r.temas.map((t, i) => (
             <div key={t.clave} className="tema">
               <div className="tema-fila"><span>{t.tema}</span><span className="tenue num">{Math.round(t.dominio * 100)}%</span></div>
@@ -71,11 +73,7 @@ export default function Resultado({ r, onRepetir }) {
               {t['errores detectados'] !== '—' && <p className="tenue peq">Error detectado: {t['errores detectados']}</p>}
             </div>
           ))}
-        </Tarjeta>
-        <Tarjeta icono={CalendarDays} titulo="Plan semanal" retraso={0.08}>
-          <PlanSemanal plan={r.plan_semanal} />
-        </Tarjeta>
-      </div>
+      </Tarjeta>
 
       <div className="dos pila">
         <Tarjeta icono={CircleCheck} titulo="Tus hábitos">
@@ -135,10 +133,10 @@ function Contador({ valor, duracion = 1.2 }) {
   return <>{Math.round(reducir ? valor : v)}</>
 }
 
-function Medidor({ nota, rango, color }) {
+function Medidor({ nota, rango, enPiso, color }) {
   const R = 92, C = 2 * Math.PI * R
   return (
-    <div className="medidor" role="img" aria-label={`Calificación esperada ${Math.round(nota)} de 100`}>
+    <div className="medidor" role="img" aria-label={`Calificación esperada ${enPiso ? 'de ' : ''}${Math.round(nota)}${enPiso ? ' o menos' : ''} de 100`}>
       <svg viewBox="0 0 220 220">
         <defs>
           <linearGradient id="g-medidor" x1="0" y1="0" x2="1" y2="1">
@@ -156,7 +154,7 @@ function Medidor({ nota, rango, color }) {
       <div className="medidor-centro">
         <span className="nota"><Contador valor={nota} /></span>
         <span className="sub">calificación esperada</span>
-        <span className="sub num">{rango[0].toFixed(0)}–{rango[1].toFixed(0)}</span>
+        <span className="sub num">{enPiso ? 'o menos' : `${rango[0].toFixed(0)}–${rango[1].toFixed(0)}`}</span>
       </div>
     </div>
   )
@@ -192,23 +190,6 @@ function CurvaHoras({ h, u }) {
       <text x={Math.min(x(h.recomendadas) + 5, W - 110)} y={P - 14} className="eje dorado-t">recomendadas</text>
       <text x={Math.min(x(h.actuales) + 5, W - 60)} y={H - P} className="eje">hoy</text>
     </svg>
-  )
-}
-
-function PlanSemanal({ plan }) {
-  const temas = [...new Set(plan.map((p) => p.tema))]
-  const horas = (t, d) => plan.filter((p) => p.tema === t && p['día'] === d).reduce((s, p) => s + p.horas, 0)
-  return (
-    <div className="desliza">
-      <table className="tabla plan">
-        <thead><tr><th>Tema</th>{DIAS.map((d) => <th key={d}>{d}</th>)}</tr></thead>
-        <tbody>
-          {temas.map((t) => (
-            <tr key={t}><td>{t}</td>{DIAS.map((d) => <td key={d}>{horas(t, d) ? <span className="celda-h">{horas(t, d)} h</span> : ''}</td>)}</tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   )
 }
 
@@ -269,5 +250,58 @@ function Confiabilidad({ integ }) {
       )}
       <p className="tenue peq" style={{ marginTop: 10 }}>Se mide el tiempo de cada pregunta (sin contar cuando cambias de pestaña) y se compara con lo habitual para su dificultad. Un tiempo poco habitual no significa que hayas hecho algo mal.</p>
     </Tarjeta>
+  )
+}
+
+const DIAS_PLAN = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+
+function iconoSesion(s) {
+  if (!s.fija) return BookOpen
+  if (s.actividad.startsWith('Asesoría')) return Users
+  if (s.actividad.startsWith('Simulacro') || s.actividad.startsWith('Autoevaluación')) return ClipboardCheck
+  return RotateCcw
+}
+
+// Plan de estudio por nivel de riesgo (panel.plan_por_riesgo): mantenimiento, refuerzo o rescate.
+function PlanEstudio({ plan, color, destacado }) {
+  const dias = DIAS_PLAN.filter((d) => plan.sesiones.some((s) => s['día'] === d))
+  return (
+    <motion.section className={`tarjeta plan-estudio ${destacado ? 'destacado' : ''}`} style={{ '--plan-color': color }} {...alVer}>
+      <div className="grupo-cab"><CalendarDays size={20} aria-hidden /><h3>{plan.titulo}</h3>
+        <span className="plan-horas num">{plan.horas_semana} h / semana · {dias.length} días</span></div>
+      <p className="plan-resumen">{plan.resumen}</p>
+      {plan.prioridades.length > 0 && (
+        <div className="plan-prioridades">
+          <b><Target size={16} aria-hidden /> Corrige primero</b>
+          <ol>{plan.prioridades.map((p) => <li key={p}>{p}</li>)}</ol>
+        </div>
+      )}
+      <div className="desliza">
+        <div className="plan-dias" style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(130px, 1fr))` }}>
+          {dias.map((d, i) => (
+            <motion.div key={d} className="plan-dia" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }} transition={{ duration: 0.35, delay: i * 0.05, ease: EASE }}>
+              <div className="plan-dia-cab">{d}</div>
+              {plan.sesiones.filter((s) => s['día'] === d).map((s, k) => {
+                const I = iconoSesion(s)
+                return (
+                  <div key={k} className={`plan-sesion ${s.fija ? 'fija' : ''}`}>
+                    <div className="plan-sesion-tema"><I size={14} aria-hidden /> {s.fija ? s.actividad : s.tema}</div>
+                    {!s.fija && <div className="tenue peq">{s.actividad}</div>}
+                    <div className="num peq">{s.horas} h</div>
+                  </div>
+                )
+              })}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+      {plan.semanas.length > 0 && (
+        <div className="plan-semanas">
+          <b><Flag size={16} aria-hidden /> Metas de las próximas {plan.semanas.length} semanas</b>
+          <ul>{plan.semanas.map((s) => <li key={s}>{s}</li>)}</ul>
+        </div>
+      )}
+    </motion.section>
   )
 }

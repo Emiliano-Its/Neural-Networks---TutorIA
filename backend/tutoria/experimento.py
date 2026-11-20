@@ -6,8 +6,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from .mlp import MLP, Ensamble, metricas_multiclase, metricas_regresion
-from .simulador import (ENTRADAS, Simulacion, curva_verdadera_horas,
-                        dividir_estratificado, matriz_entradas, nivel_riesgo, simular)
+from .simulador import (ENTRADAS, Simulacion, curva_verdadera_horas, dividir_estratificado,
+                        entrada_horas, matriz_entradas, nivel_riesgo, simular)
 
 
 @dataclass
@@ -33,16 +33,28 @@ def preparar(sim: Simulacion | None = None) -> Datos:
     return Datos(sim, X, riesgo, a["nota"].to_numpy(float), ent, val, prueba, media_d1)
 
 
-def entrenar_riesgo(d: Datos, ocultas=(32, 16), activacion="relu", tasa=0.01,
-                    epocas=150, lote=32, l2=1e-3, semilla=0) -> MLP:
-    red = MLP([len(ENTRADAS), *ocultas, 3], activacion, tasa, "multiclase", l2, semilla)
+# Hiperparámetros por defecto, elegidos con validación y con cohortes simuladas aparte. Con ~1,400 alumnos de entrenamiento la red original (L2 0.001,
+# 150 épocas fijas) memorizaba: 84 % de exactitud en entrenamiento contra 66–70 % en prueba.
+L2 = 0.03          # regularización fuerte: la señal es casi lineal y el ruido de la nota es alto
+MOMENTO = 0.9
+DECAIMIENTO = 0.02
+PACIENCIA = 15     # paro temprano: se quedan los pesos de la mejor época de validación
+
+
+def entrenar_riesgo(d: Datos, ocultas=(32, 16), activacion="relu", tasa=0.005,
+                    epocas=150, lote=32, l2=L2, semilla=0, momento=MOMENTO,
+                    decaimiento=DECAIMIENTO, paciencia=PACIENCIA) -> MLP:
+    red = MLP([len(ENTRADAS), *ocultas, 3], activacion, tasa, "multiclase", l2, semilla,
+              momento, decaimiento, paciencia)
     return red.entrenar(d.X[d.ent], d.riesgo[d.ent], epocas, lote,
                         d.X[d.val], d.riesgo[d.val], semilla)
 
 
 def entrenar_nota(d: Datos, ocultas=(32, 16), activacion="relu", tasa=0.005,
-                  epocas=150, lote=32, l2=1e-3, semilla=0) -> MLP:
-    red = MLP([len(ENTRADAS), *ocultas, 1], activacion, tasa, "regresion", l2, semilla)
+                  epocas=150, lote=32, l2=L2, semilla=0, momento=MOMENTO,
+                  decaimiento=DECAIMIENTO, paciencia=PACIENCIA) -> MLP:
+    red = MLP([len(ENTRADAS), *ocultas, 1], activacion, tasa, "regresion", l2, semilla,
+              momento, decaimiento, paciencia)
     return red.entrenar(d.X[d.ent], d.nota[d.ent], epocas, lote,
                         d.X[d.val], d.nota[d.val], semilla)
 
@@ -79,6 +91,6 @@ def curva_horas(red_nota: MLP, d: Datos, horas=np.arange(0, 21)) -> tuple[np.nda
     modelo = []
     for h in horas:
         X = d.X.copy()
-        X[:, j] = h
+        X[:, j] = entrada_horas(h)
         modelo.append(red_nota.predecir(X).mean())
     return horas, np.array(modelo), curva_verdadera_horas(d.sim, horas)

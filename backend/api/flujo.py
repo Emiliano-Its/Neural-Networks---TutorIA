@@ -204,6 +204,24 @@ def _oportunidad(t: str):
     return None
 
 
+# Un número suelto del 1 al 6 que por su posición es la oportunidad, no la calificación
+# («1 con 100», «100 en 1», «2 oportunidad»): se reescribe como ordinal («1a») para que
+# _oportunidad lo lea y _numeros lo descarte. El lookbehind/lookahead evita tocar decimales.
+_OP_SUELTA = r"(?<![\d.,])([1-6])(?![\d]|[.,]\d)"
+_OP_ANTES_DE_CON = re.compile(_OP_SUELTA + r"(?=\s*(?:oportunidad\s*)?,?\s*con\s+(?:un |una )?\d)")
+_OP_DESPUES_DE_EN = re.compile(r"(\d(?:[.,]\d+)?\s+en\s+(?:la\s+|el\s+)?)" + _OP_SUELTA
+                               + r"(?!\s*(?:vez|veces|materias?|semanas?|horas?|parcial))")
+_OP_ANTES_DE_OPORT = re.compile(_OP_SUELTA + r"(?=\s*oportunidad)")
+# respuesta que sólo dice la oportunidad: «1», «en la 2», «la 3»
+_SOLO_OP = re.compile(r"(?:en\s+)?(?:la\s+|el\s+)?([1-6])[.!]?")
+
+
+def _marcar_oportunidad(t: str) -> str:
+    t = _OP_ANTES_DE_CON.sub(r"\1a", t)
+    t = _OP_DESPUES_DE_EN.sub(r"\1\2a", t)
+    return _OP_ANTES_DE_OPORT.sub(r"\1a", t)
+
+
 def _numeros(t: str) -> list[float]:
     # quita ordinales tipo «2da», «1ª» para que no cuenten como número
     t = re.sub(r"\b[1-6]\s*(ra|da|ta|a|o|°|ª|era|nda)\b", " ", t)
@@ -243,6 +261,10 @@ def interpretar(paso: dict, texto: str, parcial: dict | None = None) -> dict:
     if tipo == "calificacion":
         rel = paso["materia"]
         parcial = dict(parcial or {})
+        solo = _SOLO_OP.fullmatch(t)
+        if solo and "cal" in parcial and "oportunidad" not in parcial:
+            t = f"{solo.group(1)}a"  # ya dio la calificación y se le preguntó la oportunidad
+        t = _marcar_oportunidad(t)
         nums = [n for n in _numeros(t) if 0 <= n <= 100]
         op = _oportunidad(t)
         if nums:

@@ -47,8 +47,10 @@ VARIABLES: list[Variable] = [
     Variable("semilla", "Semilla del simulador", "entero", simulador.SEMILLA, "Simulador",
              "Misma semilla = misma cohorte simulada.", 0, 9999, 1),
     Variable("n_estudiantes", "Alumnos simulados (1er semestre)", "entero",
-             simulador.N_PRIMER_SEMESTRE, "Simulador",
-             "Solo los que aprueban Matemáticas I (~56 %) llegan al dataset de Mate II.",
+             10000, "Simulador",
+             "Solo los que aprueban Matemáticas I (~56 %) llegan al dataset de Mate II. La "
+             f"especificación usa {simulador.N_PRIMER_SEMESTRE:,}; con 10,000 la red aprende mejor "
+             "los efectos no lineales de los hábitos (si bajas a 3,600, sube L2 a 0.03).",
              500, 10000, 100),
     # --- MLP (ensamble)
     Variable("n_modelos", "MLP por ensamble", "entero", 5, "Ensamble de MLP",
@@ -58,15 +60,24 @@ VARIABLES: list[Variable] = [
     Variable("activacion", "Función de activación", "opcion", "relu", "Ensamble de MLP",
              "Activación de las capas ocultas.", opciones=["relu", "tanh", "sigmoide"]),
     Variable("epocas", "Épocas", "entero", 150, "Ensamble de MLP",
-             "Pasadas completas por los datos de entrenamiento.", 10, 500, 10),
-    Variable("tasa_riesgo", "Tasa de aprendizaje (riesgo)", "decimal", 0.01, "Ensamble de MLP",
+             "Máximo de pasadas por los datos de entrenamiento (el paro temprano puede cortar antes).",
+             10, 500, 10),
+    Variable("tasa_riesgo", "Tasa de aprendizaje (riesgo)", "decimal", 0.005, "Ensamble de MLP",
              "Learning rate del MLP de clasificación.", 0.0005, 0.1, 0.0005),
     Variable("tasa_nota", "Tasa de aprendizaje (nota)", "decimal", 0.005, "Ensamble de MLP",
              "Learning rate del MLP de regresión.", 0.0005, 0.1, 0.0005),
     Variable("lote", "Tamaño de lote", "entero", 32, "Ensamble de MLP",
              "Alumnos por paso de descenso de gradiente.", 8, 256, 8),
-    Variable("l2", "Regularización L2", "decimal", 1e-3, "Ensamble de MLP",
-             "Penaliza pesos grandes para evitar sobreajuste.", 0.0, 0.05, 0.0005),
+    Variable("l2", "Regularización L2", "decimal", 0.01, "Ensamble de MLP",
+             "Penaliza pesos grandes para evitar sobreajuste.", 0.0, 0.1, 0.0005),
+    Variable("momento", "Momento", "decimal", 0.9, "Ensamble de MLP",
+             "Fracción del paso anterior que se conserva (0 = descenso de gradiente simple).",
+             0.0, 0.99, 0.01),
+    Variable("decaimiento", "Decaimiento de la tasa", "decimal", 0.02, "Ensamble de MLP",
+             "La tasa de aprendizaje baja a tasa / (1 + decaimiento × época).", 0.0, 0.5, 0.005),
+    Variable("paciencia", "Paciencia del paro temprano (épocas)", "entero", 15, "Ensamble de MLP",
+             "Se detiene tras estas épocas sin mejorar en validación y usa los pesos de la mejor "
+             "época. 0 = sin paro temprano.", 0, 100, 1),
     # --- SOM
     Variable("som_filas", "Filas del SOM", "entero", 10, "Mapa autoorganizado (SOM)", "", 3, 20, 1),
     Variable("som_columnas", "Columnas del SOM", "entero", 10, "Mapa autoorganizado (SOM)", "",
@@ -98,6 +109,13 @@ VARIABLES: list[Variable] = [
              "1ª (100 en 3ª → 76). Así acreditar en 1ª siempre cuenta más que en oportunidades "
              "posteriores. 0 = la oportunidad solo cuenta como materia reprobada.",
              0, 25, 1, reentrenar=False),
+    Variable("nota_piso", "Nota esperada mínima que se muestra", "decimal", 30.0,
+             "Calificaciones",
+             "Si la red predice menos, se muestra este valor (y la explicación dice «o menos»). "
+             "Evita números irreales como 8 en perfiles fuera de lo que vio la red al entrenar "
+             "(p. ej. Mate I en 6ª oportunidad). Solo cambia la nota mostrada: el nivel de riesgo "
+             "se calcula con la predicción original. 0 = sin piso.",
+             0, 60, 1, reentrenar=False),
     # --- Umbrales de riesgo
     Variable("corte_bajo", "Nota mínima para riesgo bajo", "decimal", simulador.CORTE_BAJO,
              "Umbrales de riesgo", "Nota ≥ este valor → riesgo bajo.", 60, 100, 0.5),

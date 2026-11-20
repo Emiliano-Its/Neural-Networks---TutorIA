@@ -54,12 +54,12 @@ def predecir(fila, red_r: MLP, red_n: MLP, media_d1: float) -> dict:
     proba = red_r.predecir_proba(X)[0]
     return {"proba": proba, "nivel": int(proba.argmax()),
             "nombre_nivel": NIVELES_RIESGO[int(proba.argmax())],
-            "nota": float(red_n.predecir(X)[0])}
+            "nota": float(np.clip(red_n.predecir(X)[0], 0, 100))}
 
 
 def curva_horas(fila, red_n: MLP, media_d1: float, horas=HORAS) -> np.ndarray:
     filas = pd.concat([con_cambio(fila, B1=float(h)) for h in horas], ignore_index=True)
-    return red_n.predecir(entradas(filas, media_d1))
+    return np.clip(red_n.predecir(entradas(filas, media_d1)), 0, 100)  # la nota va de 0 a 100
 
 
 def horas_recomendadas(horas, curva, metas=(80.0, 70.0), ganancia_min: float = 0.25) -> int:
@@ -143,6 +143,144 @@ def plan_semanal(tabla_temas: pd.DataFrame, horas_totales: float, n_temas: int =
         plan[dia][tema] = plan[dia].get(tema, 0) + 0.5
     filas = [{"día": d, "tema": t, "horas": h} for d in dias for t, h in plan[d].items()]
     return pd.DataFrame(filas, columns=["día", "tema", "horas"])
+
+
+MODOS_PLAN = {
+    "bajo": dict(
+        modo="mantenimiento", titulo="Plan de mantenimiento",
+        resumen="Vas bien. Con sesiones cortas para practicar y una autoevaluación a la semana "
+                "conservas lo que ya sabes.",
+        min_h=3, n_temas=3, dias=("Lun", "Mié", "Vie"), max_dia=2.0,
+        fijas=[("Sáb", "Autoevaluación corta: 5 ejercicios mezclados", 0.5)],
+        actividades=["Ejercicios de práctica", "Ejercicios retadores"],
+        semanas=[]),
+    "medio": dict(
+        modo="refuerzo", titulo="Plan de refuerzo",
+        resumen="Estás cerca del límite. Este plan sube tus horas, agrega una asesoría y un "
+                "simulacro semanal para que no dependas de la suerte en el examen.",
+        min_h=7, n_temas=4, dias=("Lun", "Mar", "Mié", "Jue", "Vie"), max_dia=2.0,
+        fijas=[("Jue", "Asesoría: lleva tus dudas de la semana", 1.0),
+               ("Sáb", "Simulacro de examen (con tiempo)", 1.0)],
+        actividades=["Teoría y ejemplos", "Ejercicios guiados", "Ejercicios sin ayuda"],
+        semanas=["Semana 1: repasa la teoría de {t0} y {t1} y ve a la asesoría con dudas concretas.",
+                 "Semana 2: resuelve ejercicios sin ayuda de todos tus temas y haz el simulacro; "
+                 "vuelve a hacer el test para medir tu avance."]),
+    "alto": dict(
+        modo="rescate", titulo="Plan de rescate",
+        resumen="El modelo ve riesgo de reprobar. Este plan es más intenso: estudio diario desde "
+                "la teoría, dos asesorías, un simulacro y un repaso de errores cada semana.",
+        min_h=12, n_temas=5, dias=("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"), max_dia=2.5,
+        fijas=[("Mar", "Asesoría: resuelve dudas de lo que viste el lunes", 1.0),
+               ("Jue", "Asesoría: revisa con el asesor tus ejercicios", 1.0),
+               ("Sáb", "Simulacro de examen (con tiempo)", 1.5),
+               ("Dom", "Repaso de errores del simulacro", 1.0)],
+        actividades=["Teoría desde cero", "Ejercicios guiados", "Ejercicios sin ayuda"],
+        semanas=["Semana 1: teoría desde cero de {t0} y {t1}; ve a las dos asesorías aunque no "
+                 "tengas dudas claras.",
+                 "Semana 2: ejercicios guiados de {t0}, {t1} y {t2}; corrige primero: {habito}.",
+                 "Semana 3: ejercicios sin ayuda y simulacro completo; repite los temas donde "
+                 "falles más de la mitad.",
+                 "Semana 4: vuelve a hacer el test en TutorIA y compara tu nota esperada."]),
+}
+DIAS_SEMANA = ("Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom")
+
+
+def plan_por_riesgo(tabla_temas: pd.DataFrame, horas_base: float, nivel: str,
+                    habitos_df: pd.DataFrame | None = None,
+                    factores_df: pd.DataFrame | None = None, horas_max: float = 20) -> dict:
+    """Plan de estudio que cambia con el nivel de riesgo, no solo con los temas.
+
+    - bajo  → mantenimiento: 3 días, pocas horas, práctica y una autoevaluación.
+    - medio → refuerzo: 5 días, ≥ 7 h, asesoría semanal y simulacro.
+    - alto  → rescate: 6 días + domingo, ≥ 12 h, más temas, 2 asesorías, simulacro,
+              repaso de errores, metas por semana y lo que hay que corregir primero.
+    Las sesiones fijas (asesorías, simulacro) cuentan dentro de las horas totales.
+    """
+    m = MODOS_PLAN[nivel]
+    total = float(min(max(float(horas_base), m["min_h"]), horas_max))
+    total = round(total * 2) / 2
+    fijas = [{"día": d, "tema": "General", "actividad": a, "horas": float(h), "fija": True}
+             for d, a, h in m["fijas"]]
+    libres = max(total - sum(f["horas"] for f in fijas), 1.0)
+    total = sum(f["horas"] for f in fijas) + libres  # por si el mínimo de 1 h libre lo sube
+
+    # temas: en riesgo alto entran todos los que no domina (< 75 %), al menos 3
+    tt = tabla_temas
+    if nivel == "alto":
+        debiles = tt[tt["dominio"] < 0.75]
+        top = tt.head(max(3, min(len(debiles), m["n_temas"])))
+    else:
+        top = tt.head(m["n_temas"])
+
+    # bloques de 1 h (el último puede ser de media hora) repartidos por prioridad
+    bloques = int(round(libres * 2))  # en medias horas
+    peso = top["prioridad"].to_numpy(dtype=float)
+    peso = peso / peso.sum() if peso.sum() > 0 else np.full(len(top), 1 / len(top))
+    n = np.floor(peso * bloques).astype(int)
+    for i in np.argsort(-(peso * bloques - n))[: bloques - n.sum()]:
+        n[i] += 1
+    sesiones = []
+    for tema, medias in zip(top["tema"], n):
+        medias, k = int(medias), 0
+        while medias > 0:
+            h = 1.0 if medias >= 2 else 0.5
+            act = m["actividades"][min(k, len(m["actividades"]) - 1)]
+            sesiones.append({"tema": str(tema), "actividad": act, "horas": h, "fija": False, "k": k})
+            medias -= int(h * 2)
+            k += 1
+    # orden: primero la sesión 0 de cada tema (teoría), luego la 1, etc.
+    sesiones.sort(key=lambda s: s["k"])
+
+    carga = {d: 0.0 for d in DIAS_SEMANA}
+    for f in fijas:
+        carga[f["día"]] += f["horas"]
+    # llena los días en orden (la teoría queda antes que los ejercicios) hasta una carga pareja
+    dias_plan = m["dias"]
+    if (libres + sum(carga[d] for d in dias_plan)) / len(dias_plan) > m["max_dia"]:
+        dias_plan = DIAS_SEMANA[:6]  # quien ya estudia muchas horas: repartirlas en más días
+    objetivo = (libres + sum(carga[d] for d in dias_plan)) / len(dias_plan)
+    for s in sesiones:
+        libres_d = [d for d in dias_plan if carga[d] + s["horas"] <= objetivo + 1e-9]
+        s["día"] = libres_d[0] if libres_d else min(dias_plan, key=lambda d: carga[d])
+        carga[s["día"]] += s["horas"]
+        s.pop("k")
+
+    orden = {d: i for i, d in enumerate(DIAS_SEMANA)}
+    todas = sorted(fijas + sesiones, key=lambda s: (orden[s["día"]], s["fija"]))
+    # une sesiones contiguas del mismo tema y actividad en el mismo día
+    filas = []
+    for s in todas:
+        if filas and all(filas[-1][k] == s[k] for k in ("día", "tema", "actividad")):
+            filas[-1]["horas"] += s["horas"]
+        else:
+            filas.append(dict(s))
+
+    prioridades = []
+    if nivel != "bajo":
+        if factores_df is not None:
+            for f in factores_df.to_dict("records"):
+                # las horas de estudio ya las fija el plan; no repetirlas con otra meta
+                if (not f["ya está bien"] and float(f["cambio en la nota"]) > 0.3
+                        and f["factor"].lower() != "horas de estudio"):
+                    prioridades.append(f"{f['factor']}: de {f['actual']} a {f['valor sano']} "
+                                       f"(≈ +{float(f['cambio en la nota']):.1f} puntos).")
+        if habitos_df is not None:
+            vistos = " ".join(prioridades).lower()
+            for h in habitos_df.to_dict("records"):
+                if h["consejo"] and h["hábito"].lower() not in vistos:
+                    prioridades.append(f"{h['hábito']}: {h['consejo']}")
+        prioridades = prioridades[: 3 if nivel == "alto" else 2]
+
+    vistos_t = [f["tema"] for f in filas if not f["fija"]]
+    nombres = list(dict.fromkeys(vistos_t)) + ["tus temas"] * 3  # en el orden del plan
+    habito = prioridades[0].split(":")[0].lower() if prioridades else "tus horas de estudio"
+    semanas = [s.format(t0=nombres[0], t1=nombres[1], t2=nombres[2], habito=habito)
+               for s in m["semanas"]]
+    dias_estudio = sorted({f["día"] for f in filas}, key=orden.get)
+    return {"nivel": nivel, "modo": m["modo"], "titulo": m["titulo"], "resumen": m["resumen"],
+            "horas_semana": float(total), "dias_estudio": dias_estudio,
+            "temas": [str(t) for t in top["tema"]], "sesiones": filas,
+            "prioridades": prioridades, "semanas": semanas}
 
 
 # ---------------------------------------------------------------- hábitos

@@ -272,6 +272,16 @@ def nivel_riesgo(nota: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------- entradas
+def entrada_horas(horas) -> np.ndarray:
+    """Escala de las horas de estudio (B1) al entrar a la red: log(1 + horas).
+
+    Estudiar rinde cada vez menos: la primera hora suma más que la decimoquinta. Con las horas
+    tal cual la red aprendía casi una recta y recomendaba el máximo (20 h) a 4 de cada 10
+    alumnos; en escala logarítmica la curva nota-vs-horas se aplana como debe.
+    """
+    return np.log1p(np.asarray(horas, dtype=float))
+
+
 def matriz_entradas(alumnos: pd.DataFrame, media_d1: float | None = None) -> pd.DataFrame:
     """Construye las 28 entradas (sin estandarizar; la estandarización la hace el modelo
     con la media y desviación del conjunto de entrenamiento)."""
@@ -279,7 +289,7 @@ def matriz_entradas(alumnos: pd.DataFrame, media_d1: float | None = None) -> pd.
     for clave, _, _, mu, sigma, _ in MATERIAS:
         X[f"pos_{clave}"] = (alumnos[f"cal_{clave}"] - mu) / sigma
     X["A2"] = alumnos["A2"]
-    X["B1"] = alumnos["B1"]
+    X["B1"] = entrada_horas(alumnos["B1"])
     X["B2"] = alumnos["B2"]
     X["B3"] = alumnos["B3"]
     X["B4"] = (alumnos["B4"] - 1) / 4

@@ -222,6 +222,26 @@ input[type=range] { width: 100%; accent-color: var(--accent); height: 28px; }
 .plan td:not(:first-child), .plan th:not(:first-child) { text-align: center; white-space: nowrap; }
 .plan .celda-h { display: inline-block; min-width: 40px; padding: 2px 6px; border-radius: 6px; font: 11.5px var(--font-mono); color: var(--accent); background: rgba(210, 178, 115, .09); border: 1px solid rgba(210, 178, 115, .18); }
 .desliza { overflow-x: auto; }
+/* plan de estudio por nivel de riesgo */
+.plan-estudio .grupo-cab { flex-wrap: wrap; }
+.plan-estudio .grupo-cab svg { color: var(--plan-color, var(--accent)); }
+.plan-horas { margin-left: auto; font-size: 13px; color: var(--muted); }
+.plan-estudio.destacado { border-left: 4px solid var(--plan-color); background: linear-gradient(90deg, color-mix(in srgb, var(--plan-color) 7%, transparent), transparent 70%), var(--vidrio); }
+.plan-resumen { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+.plan-prioridades, .plan-semanas { margin: 0 0 16px; font-size: 14px; }
+.plan-prioridades b, .plan-semanas b { display: inline-flex; align-items: center; gap: 6px; }
+.plan-prioridades b svg, .plan-semanas b svg { color: var(--plan-color, var(--accent)); }
+.plan-prioridades ol, .plan-semanas ul { margin: 8px 0 0; padding-left: 20px; }
+.plan-prioridades li, .plan-semanas li { margin-bottom: 4px; }
+.plan-semanas { margin: 16px 0 0; }
+.plan-dias { display: grid; gap: 10px; padding-bottom: 4px; }
+.plan-dia { display: flex; flex-direction: column; gap: 8px; }
+.plan-dia-cab { font: 600 12px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.plan-sesion { padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 255, 255, .02); font-size: 13px; display: flex; flex-direction: column; gap: 3px; }
+.plan-sesion-tema { display: flex; gap: 6px; align-items: flex-start; font-weight: 500; }
+.plan-sesion-tema svg { flex: none; margin-top: 2px; color: var(--accent); }
+.plan-sesion .num { color: var(--accent); }
+.plan-sesion.fija { background: rgba(210, 178, 115, .08); border-color: rgba(210, 178, 115, .22); }
 .habitos { list-style: none; padding: 0; margin: 0; }
 .habitos li { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .habitos li svg { flex: none; margin-top: 2px; }

@@ -102,6 +102,15 @@ def test_conversacion_entiende_frases_comunes():
     assert flujo.interpretar(cal, "la reprobé una vez y luego saqué 80")["valor"] == {"cal": 80, "oportunidad": 2}
     assert flujo.interpretar(cal, "la reprobé 2 veces, ahora 75")["valor"] == {"cal": 75, "oportunidad": 3}
     assert flujo.interpretar(cal, "saqué un 85 en primera")["valor"] == {"cal": 85, "oportunidad": 1}
+    # «<oportunidad> con <cal>» / «<cal> en <oportunidad>»: el 1–6 no es la calificación
+    for texto, esperado in [("1 con 100", (100, 1)), ("1ra con 95", (95, 1)), ("2da con 80", (80, 2)),
+                            ("en 1 con 100", (100, 1)), ("100 en 1", (100, 1)), ("100 en primera", (100, 1)),
+                            ("1a con 100", (100, 1)), ("con 100 en la 1", (100, 1)),
+                            ("2 oportunidad con 80", (80, 2)), ("6 con 90", (90, 6)), ("85.5 en 1", (85.5, 1))]:
+        assert flujo.interpretar(cal, texto)["valor"] == {"cal": esperado[0], "oportunidad": esperado[1]}, texto
+    # ya dio la calificación y se le pregunta la oportunidad: «1» no reemplaza la calificación
+    assert flujo.interpretar(cal, "1", {"cal": 100})["valor"] == {"cal": 100, "oportunidad": 1}
+    assert flujo.interpretar(cal, "en la 2", {"cal": 85})["valor"] == {"cal": 85, "oportunidad": 2}
     p = {c["clave"]: c for c in flujo.preguntas("mate2")["encuesta"]}
     assert flujo.interpretar(p["B3"], "duermo 6 y media")["valor"] == 6.5
     assert flujo.interpretar(p["B5"], "tengo 8 materias")["ok"] is False  # es de otra pregunta
@@ -131,3 +140,53 @@ def test_nivel_de_riesgo_no_contradice_la_nota():
     # la red dice «medio» pero la nota esperada es 47: el nivel mostrado debe ser alto
     p = servicio.riesgo_combinado([0.0, 0.7, 0.3], 47.0, 5.0, (80.0, 70.0))
     assert abs(p.sum() - 1) < 1e-9 and p.argmax() == 2
+
+
+def test_horas_recomendadas_realistas(M):
+    """La curva nota-vs-horas debe aplanarse (rendimientos decrecientes): casi nadie debe
+    recibir la recomendación máxima de 20 h, y nadie menos horas de las que ya rinden."""
+    d = M.datos
+    filas = d.sim.alumnos.iloc[d.prueba[:150]]
+    rec = [panel.horas_recomendadas(panel.HORAS, panel.curva_horas(filas.iloc[[i]], M.red_n, d.media_d1))
+           for i in range(len(filas))]
+    assert np.mean(np.array(rec) == 20) < 0.10, np.bincount(rec, minlength=21)
+    curva = panel.curva_horas(panel.fila_alumno(_enc(), _test(0.55)), M.red_n, d.media_d1)
+    assert (np.diff(curva) > -0.05).all()                       # estudiar más nunca baja la nota
+    assert curva[5] - curva[0] > 2 * (curva[20] - curva[15])    # las primeras horas rinden más
+
+
+def test_nota_dentro_de_rango(M):
+    p = _pred(M, _enc(cal=100.0, **MEJOR), _test(0.99))
+    assert 0 <= p["nota"] <= 100
+
+
+def test_piso_de_la_nota_mostrada():
+    """Perfiles fuera de lo entrenado (Mate I en 6ª → entra como 10) no deben mostrar notas
+    irreales como 8; las notas normales y el nivel de riesgo no cambian con el piso."""
+    piso = config.defectos()["nota_piso"]
+    bajo = servicio.nota_mostrada(8.0, 6.0, piso)
+    assert bajo["esperada"] == piso and bajo["en_piso"] and bajo["rango"][0] >= piso
+    for n in (47.0, 57.0, 85.0):
+        r = servicio.nota_mostrada(n, 6.0, piso)
+        assert r["esperada"] == n and not r["en_piso"] and r["rango"] == [n - 6.0, n + 6.0]
+    assert servicio.nota_mostrada(8.0, 6.0, 0.0)["esperada"] == 8.0   # 0 = sin piso
+    # el riesgo se calcula con la predicción original: 8 sigue siendo riesgo alto
+    assert servicio.riesgo_combinado([0.2, 0.5, 0.3], 8.0, 6.0, (80.0, 70.0)).argmax() == 2
+    with pytest.raises(ValueError):
+        config.validar({"nota_piso": 75})
+
+
+def test_plan_cambia_con_el_riesgo():
+    import pandas as pd
+    tem = pd.DataFrame({"tema": list("ABCDEFG"), "clave": list("abcdefg"),
+                        "dominio": [.2, .3, .1, .4, .2, .5, .3], "peso": [1/7] * 7})
+    tem["prioridad"] = (1 - tem.dominio) * tem.peso
+    tem = tem.sort_values("prioridad", ascending=False, ignore_index=True)
+    bajo = panel.plan_por_riesgo(tem, 2, "bajo")
+    alto = panel.plan_por_riesgo(tem, 2, "alto")
+    assert alto["horas_semana"] >= bajo["horas_semana"] + 6
+    assert len(alto["dias_estudio"]) > len(bajo["dias_estudio"])
+    assert len(alto["temas"]) > len(bajo["temas"])
+    assert any("Asesoría" in s["actividad"] for s in alto["sesiones"])
+    assert alto["semanas"] and not bajo["semanas"]
+    assert abs(sum(s["horas"] for s in alto["sesiones"]) - alto["horas_semana"]) < 1e-9
