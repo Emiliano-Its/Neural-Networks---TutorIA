@@ -29,9 +29,8 @@ hiperparámetros y reentrenar.
 ├── backend/
 │   ├── api/            # API FastAPI: rutas, servicio de modelos, flujo, integridad, chat, config
 │   ├── tutoria/        # núcleo: simulador, SOM, MLP, TRI, encuesta, experimento
-│   ├── scripts/        # calibración del simulador y prueba con el dataset UCI 697
 │   ├── tests/          # pruebas con pytest
-│   ├── data/           # datos sintéticos, banco de preguntas y plantilla para datos reales
+│   ├── data/           # datos sintéticos y banco de preguntas
 │   ├── config.json     # hiperparámetros ajustables desde el panel de admin
 │   └── requirements.txt
 ├── frontend/           # app web en React + Vite
@@ -77,15 +76,6 @@ pytest                                   # desde la raíz (pytest.ini apunta a b
 cd frontend && npm run lint && npm run build
 ```
 
-Scripts del simulador (desde `backend/`):
-
-```bash
-cd backend
-python -m scripts.calibrar               # revisa las metas de calibración
-python -m scripts.calibrar --guardar     # además regenera data/alumnos.csv y data/ocultas.csv
-python -m scripts.prueba_uci             # descarga UCI 697 y compara el MLP con una logística
-```
-
 ## Datos
 
 El repositorio **no contiene datos personales**.
@@ -95,14 +85,7 @@ El repositorio **no contiene datos personales**.
   ~2,000 que aprueban Matemáticas I forman el dataset de Mate II. Las variables ocultas
   (q, c, θ, k, A) se guardan aparte y nunca entran a la red. El diseño completo está en
   [`docs/especificacion-simulador.md`](docs/especificacion-simulador.md).
-- **UCI 697**, *Predict Students' Dropout and Academic Success* (Realinho et al., 2021,
-  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): dataset público para una prueba
-  de realidad del MLP. Se descarga con `scripts.prueba_uci` y no se sube al repositorio.
-- `backend/data/plantilla_alumnos_reales.csv`: formato para evaluar el modelo con datos reales.
-  Si usas datos de alumnos reales, no los subas al repositorio.
 
 ## Créditos
 
 Proyecto de redes neuronales de Emiliano ([@Emiliano-Its](https://github.com/Emiliano-Its)), UANL.
-Dataset UCI 697: V. Realinho, J. Machado, L. Baptista y M. V. Martins (2021),
-UCI Machine Learning Repository.

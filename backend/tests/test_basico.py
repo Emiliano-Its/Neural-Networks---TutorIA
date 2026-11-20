@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
 
-from scripts.calibrar import evaluar
 from tutoria.experimento import entrenar_nota, entrenar_riesgo, evaluar_nota, evaluar_riesgo, preparar
 from tutoria.mlp import MLP
 from tutoria.simulador import ENTRADAS, ENTRADAS_SOM, matriz_entradas, simular
@@ -42,11 +41,6 @@ def test_division_estratificada(datos):
     for parte in (datos.ent, datos.val, datos.prueba):
         prop = np.bincount(datos.riesgo[parte], minlength=3) / len(parte)
         assert np.allclose(prop, np.bincount(datos.riesgo) / n, atol=0.02)
-
-
-def test_calibracion_corre(datos):
-    metas = evaluar(datos.sim)
-    assert len(metas) == 16
 
 
 def test_som_reduce_error(datos):

@@ -55,7 +55,7 @@ COEF_Z = 8.8     # peso de z en la nota (original 6.5, luego 9.0; 8.8 al reforza
 NIVELES_RIESGO = ["bajo", "medio", "alto"]  # códigos 0, 1, 2
 
 # Parámetros de la encuesta (puntos de partida de la especificación; se
-# ajustan con scripts/calibrar.py).
+# ajustan con el proceso de calibración descrito en docs/especificacion-simulador.md).
 PARAMS_ENCUESTA = {
     "b1_media": 7.3, "b1_c": 2.5, "b1_ruido": 3.5,
     "b2_media": 0.845, "b2_c": 0.07, "b2_ruido": 0.065,
